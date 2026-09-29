@@ -123,7 +123,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 ## 📂 문서
 
-- [설계서](Docs/design.md)
+- [설계서](Docs/Design.md)
 
 ## 🌿 브랜치 및 커밋 규칙
 
