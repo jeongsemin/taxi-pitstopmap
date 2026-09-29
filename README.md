@@ -105,7 +105,7 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
-> ⚠️ `.env` 파일은 절대 커밋하지 마세요.
+> ⚠️ `.env` 파일은 절대 커밋하지 말것.
 
 ## 🗺 로드맵
 
@@ -123,7 +123,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 ## 📂 문서
 
-- [설계서](docs/design.md)
+- [설계서](Docs/design.md)
 
 ## 🌿 브랜치 및 커밋 규칙
 
