@@ -10,6 +10,8 @@ type Props = {
   places: Place[];
   selectedId: string | null;
   onSelect?: (id: string) => void;
+  // 사용자가 지도를 직접 끌기 시작할 때 (코드로 움직인 경우는 호출되지 않는다)
+  onMapMove?: () => void;
   // 탐색 화면: 반경 원과 내 위치 표시 / 상세 화면: 장소 하나만 보여준다
   variant?: "explore" | "detail";
   radius?: number;
@@ -42,13 +44,15 @@ function markerImage(type: PlaceType, level: ParkingLevel, selected: boolean) {
   const cached = imageCache.get(cacheKey);
   if (cached) return cached;
 
-  const size = selected ? 56 : 46;
-  const icon = selected ? 26 : 22;
+  // 마커는 지도 위에 많이 겹치므로 작게 그린다 (기본 23px, 선택 28px)
+  const size = selected ? 28 : 23;
+  const icon = Math.round(size * 0.5);
+  const border = 2;
   const offset = (size - icon) / 2;
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
-    `<circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - 2}" fill="${LEVEL_STYLE[level].color}" stroke="${INK}" stroke-width="4"/>` +
-    `<g transform="translate(${offset} ${offset}) scale(${icon / 24})" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconToSvg(MARKER_ICON[type])}</g>` +
+    `<circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - border / 2}" fill="${LEVEL_STYLE[level].color}" stroke="${INK}" stroke-width="${border}"/>` +
+    `<g transform="translate(${offset} ${offset}) scale(${icon / 24})" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">${iconToSvg(MARKER_ICON[type])}</g>` +
     `</svg>`;
   const image = new kakao.maps.MarkerImage(
     `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
@@ -92,6 +96,7 @@ export default function KakaoMap({
   places,
   selectedId,
   onSelect,
+  onMapMove,
   variant = "explore",
   radius = 500,
   level = 4,
@@ -99,7 +104,12 @@ export default function KakaoMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<kakao.maps.Map | null>(null);
   const overlaysRef = useRef<(kakao.maps.Marker | kakao.maps.Circle)[]>([]);
+  const onMapMoveRef = useRef(onMapMove);
   const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    onMapMoveRef.current = onMapMove;
+  }, [onMapMove]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -110,6 +120,9 @@ export default function KakaoMap({
           center: new kakao.maps.LatLng(center.lat, center.lng),
           level,
         });
+        kakao.maps.event.addListener(mapRef.current, "dragstart", () =>
+          onMapMoveRef.current?.(),
+        );
         setReady(true);
       })
       .catch((e: Error) => setError(e.message));

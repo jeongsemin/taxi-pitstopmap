@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { LocateFixed, MapPin } from "lucide-react";
+import { LocateFixed, MapPin, X } from "lucide-react";
 import BottomNav, { type Tab } from "@/components/BottomNav";
 import FilterBar, { type Filter } from "@/components/FilterBar";
 import PlaceCard, { reasonText } from "@/components/PlaceCard";
@@ -29,6 +29,8 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  // 하단 카드(선택한 장소/추천) 표시 여부. 닫거나 지도를 끌면 숨기고, 새로 검색하면 다시 보인다.
+  const [cardOpen, setCardOpen] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const locate = useCallback(() => {
@@ -40,6 +42,7 @@ export default function Home() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setLoading(true);
+        setCardOpen(true);
         setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setLocMessage("현재 위치 기준");
       },
@@ -101,23 +104,42 @@ export default function Home() {
     places.find((p) => parkingLevel(p.parking.score) === "good") ??
     places[0] ??
     null;
-  const card = focused ?? recommended;
+  const card = cardOpen ? (focused ?? recommended) : null;
   const detail = allPlaces.find((p) => p.id === detailId) ?? null;
 
   const changeRadius = (r: number) => {
     setLoading(true);
+    setCardOpen(true);
     setRadius(r);
   };
 
-  const handleFocus = useCallback((id: string) => setFocusId(id), []);
+  const changeFilter = (f: Filter) => {
+    setCardOpen(true);
+    setFilter(f);
+  };
+
+  const changeParkableOnly = (v: boolean) => {
+    setCardOpen(true);
+    setParkableOnly(v);
+  };
+
+  const handleFocus = useCallback((id: string) => {
+    setFocusId(id);
+    setCardOpen(true);
+  }, []);
+
+  const closeCard = useCallback(() => {
+    setCardOpen(false);
+    setFocusId(null);
+  }, []);
 
   const filterBar = (
     <FilterBar
       counts={counts}
       filter={filter}
-      onFilter={setFilter}
+      onFilter={changeFilter}
       parkableOnly={parkableOnly}
-      onParkableOnly={setParkableOnly}
+      onParkableOnly={changeParkableOnly}
     />
   );
 
@@ -131,6 +153,7 @@ export default function Home() {
           radius={radius}
           selectedId={focusId}
           onSelect={handleFocus}
+          onMapMove={closeCard}
         />
 
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2 pt-4">
@@ -163,12 +186,12 @@ export default function Home() {
             <LocateFixed size={22} aria-hidden />
           </button>
           {card ? (
-            <button
-              onClick={() => setDetailId(card.id)}
-              className="pointer-events-auto flex w-full flex-col gap-3.5 rounded-[22px] bg-surface p-4 text-left shadow-[0_12px_28px_rgba(0,0,0,0.4)]"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2">
+            <div className="pointer-events-auto relative w-full rounded-[22px] bg-surface shadow-[0_12px_28px_rgba(0,0,0,0.4)]">
+              <button
+                onClick={() => setDetailId(card.id)}
+                className="flex w-full flex-col gap-3.5 p-4 text-left"
+              >
+                <div className="flex items-center gap-2 pr-11">
                   <CategoryIcon place={card} size={38} />
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-brand">
@@ -179,22 +202,30 @@ export default function Home() {
                     </p>
                   </div>
                 </div>
-                <StatusPill score={card.parking.score} />
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-sm font-medium text-muted">
-                  {[card.category, isOpen24h(card) ? "24시간" : null]
-                    .filter(Boolean)
-                    .join(" · ")}{" "}
-                  · {reasonText(card)}
-                </p>
-                <p className="shrink-0 text-lg font-extrabold">
-                  {card.distance}m
-                </p>
-              </div>
-            </button>
+                <div className="flex items-center gap-2">
+                  <StatusPill score={card.parking.score} />
+                  <p className="min-w-0 flex-1 truncate text-sm font-medium text-muted">
+                    {[card.category, isOpen24h(card) ? "24시간" : null]
+                      .filter(Boolean)
+                      .join(" · ")}{" "}
+                    · {reasonText(card)}
+                  </p>
+                  <p className="shrink-0 text-lg font-extrabold">
+                    {card.distance}m
+                  </p>
+                </div>
+              </button>
+              <button
+                onClick={closeCard}
+                aria-label="장소 정보 닫기"
+                className="absolute top-3 right-3 flex size-9 items-center justify-center rounded-full bg-raised text-muted"
+              >
+                <X size={18} aria-hidden />
+              </button>
+            </div>
           ) : (
-            !loading && (
+            !loading &&
+            places.length === 0 && (
               <p className="pointer-events-auto w-full rounded-[22px] bg-surface p-4 text-center text-sm font-semibold text-muted shadow-[0_12px_28px_rgba(0,0,0,0.4)]">
                 조건에 맞는 장소가 없어요. 반경을 넓히거나 필터를 바꿔 보세요.
               </p>
