@@ -209,8 +209,8 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
           )}
         </div>
 
-        {/* 지도 앱 버튼: 화면이 충분히 클 때만 아래에 고정하고, 낮은 화면에서는 내용과 함께 스크롤한다 */}
-        <div className="sticky bottom-0 mt-auto flex items-end gap-2.5 border-t border-line bg-surface px-5 pt-3 pb-4 [@media(max-height:620px)]:static">
+        {/* 지도 앱 버튼: 화면 크기와 관계없이 항상 하단에 고정한다 (내용만 스크롤) */}
+        <div className="sticky bottom-0 mt-auto flex items-end gap-2.5 border-t border-line bg-surface px-5 pt-2.5 pb-3">
           {place.phone && (
             <a
               href={`tel:${place.phone}`}

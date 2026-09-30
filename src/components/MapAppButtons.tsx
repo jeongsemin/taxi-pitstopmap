@@ -13,7 +13,7 @@ import type { Place } from "@/types/place";
 type Notice = { text: string; href?: string; linkLabel?: string };
 
 const BUTTON =
-  "flex min-h-14 min-w-0 items-center justify-center rounded-2xl bg-chip px-1 text-base font-extrabold whitespace-nowrap text-fg";
+  "flex min-h-14 min-w-0 items-center justify-center rounded-2xl bg-chip p-[5px] text-base font-extrabold whitespace-nowrap text-fg";
 
 // 길안내는 직접 하지 않고, 목적지를 카카오맵·네이버 지도·T맵으로 넘긴다.
 export default function MapAppButtons({ place }: { place: Place }) {
