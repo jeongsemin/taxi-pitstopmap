@@ -29,8 +29,6 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
-  // 하단 카드(선택한 장소/추천) 표시 여부. 닫거나 지도를 끌면 숨기고, 새로 검색하면 다시 보인다.
-  const [cardOpen, setCardOpen] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const locate = useCallback(() => {
@@ -42,7 +40,6 @@ export default function Home() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setLoading(true);
-        setCardOpen(true);
         setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setLocMessage("현재 위치 기준");
       },
@@ -100,46 +97,26 @@ export default function Home() {
   );
 
   const focused = places.find((p) => p.id === focusId) ?? null;
-  const recommended =
-    places.find((p) => parkingLevel(p.parking.score) === "good") ??
-    places[0] ??
-    null;
-  const card = cardOpen ? (focused ?? recommended) : null;
+  // 하단 카드는 사용자가 마커를 직접 선택했을 때만 보인다 (자동 추천 없음)
+  const card = focused;
   const detail = allPlaces.find((p) => p.id === detailId) ?? null;
 
   const changeRadius = (r: number) => {
     setLoading(true);
-    setCardOpen(true);
     setRadius(r);
   };
 
-  const changeFilter = (f: Filter) => {
-    setCardOpen(true);
-    setFilter(f);
-  };
+  const handleFocus = useCallback((id: string) => setFocusId(id), []);
 
-  const changeParkableOnly = (v: boolean) => {
-    setCardOpen(true);
-    setParkableOnly(v);
-  };
-
-  const handleFocus = useCallback((id: string) => {
-    setFocusId(id);
-    setCardOpen(true);
-  }, []);
-
-  const closeCard = useCallback(() => {
-    setCardOpen(false);
-    setFocusId(null);
-  }, []);
+  const closeCard = useCallback(() => setFocusId(null), []);
 
   const filterBar = (
     <FilterBar
       counts={counts}
       filter={filter}
-      onFilter={changeFilter}
+      onFilter={setFilter}
       parkableOnly={parkableOnly}
-      onParkableOnly={changeParkableOnly}
+      onParkableOnly={setParkableOnly}
     />
   );
 
@@ -194,9 +171,7 @@ export default function Home() {
                 <div className="flex items-center gap-2 pr-11">
                   <CategoryIcon place={card} size={38} />
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-brand">
-                      {focused ? "선택한 장소" : "가장 가까운 추천"}
-                    </p>
+                    <p className="text-xs font-bold text-brand">선택한 장소</p>
                     <p className="truncate text-[22px] leading-tight font-extrabold">
                       {card.name}
                     </p>
