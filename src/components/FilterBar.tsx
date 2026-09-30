@@ -21,6 +21,7 @@ type Props = {
   onParkableOnly: (v: boolean) => void;
 };
 
+// 종류 버튼은 선택된 상태에서 다시 누르면 해제되고, 아무것도 선택하지 않은 상태는 "전체"다.
 export default function FilterBar({
   counts,
   filter,
@@ -39,14 +40,14 @@ export default function FilterBar({
       />
       <FilterPill
         active={filter === "restaurant"}
-        onClick={() => onFilter("restaurant")}
+        onClick={() => onFilter(filter === "restaurant" ? "all" : "restaurant")}
         icon={Utensils}
         label="식당"
         count={counts.restaurant}
       />
       <FilterPill
         active={filter === "toilet"}
-        onClick={() => onFilter("toilet")}
+        onClick={() => onFilter(filter === "toilet" ? "all" : "toilet")}
         icon={Toilet}
         label="화장실"
         count={counts.toilet}
