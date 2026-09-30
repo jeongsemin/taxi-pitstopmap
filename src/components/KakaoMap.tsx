@@ -20,6 +20,18 @@ const TYPE_EMOJI: Record<PlaceType, string> = {
 // 마커 색은 주정차 점수, 아이콘은 장소 종류
 const imageCache = new Map<string, kakao.maps.MarkerImage>();
 
+function myLocationImage() {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">` +
+    `<circle cx="14" cy="14" r="13" fill="#2563eb" fill-opacity="0.25"/>` +
+    `<circle cx="14" cy="14" r="7" fill="#2563eb" stroke="white" stroke-width="3"/></svg>`;
+  return new kakao.maps.MarkerImage(
+    `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+    new kakao.maps.Size(28, 28),
+    { offset: new kakao.maps.Point(14, 14) },
+  );
+}
+
 function markerImage(type: PlaceType, level: ParkingLevel) {
   const cacheKey = `${type}-${level}`;
   const cached = imageCache.get(cacheKey);
@@ -105,7 +117,13 @@ export default function KakaoMap({
     circle.setMap(map);
     overlaysRef.current.push(circle);
 
-    const me = new kakao.maps.Marker({ position: centerLatLng, map });
+    const me = new kakao.maps.Marker({
+      position: centerLatLng,
+      image: myLocationImage(),
+      title: "내 위치",
+      zIndex: 10,
+      map,
+    });
     overlaysRef.current.push(me);
 
     places.forEach((p) => {
