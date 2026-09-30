@@ -11,10 +11,10 @@ export const REPORT_OPTIONS: {
   {
     value: "parkable",
     label: "🟢 세울 수 있었음",
-    className: "bg-green-600 text-white",
+    className: "bg-good text-ink",
   },
-  { value: "enforced", label: "🔴 단속됨", className: "bg-red-600 text-white" },
-  { value: "full", label: "⚪ 자리 없음", className: "bg-zinc-600 text-white" },
+  { value: "enforced", label: "🔴 단속됨", className: "bg-bad text-ink" },
+  { value: "full", label: "⚪ 자리 없음", className: "bg-chip text-fg" },
 ];
 
 const ERROR_MESSAGES: Record<string, string> = {

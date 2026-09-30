@@ -1,14 +1,9 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
@@ -17,12 +12,13 @@ export const metadata: Metadata = {
   description: "택시 기사를 위한 주정차 가능 식당·화장실 안내",
 };
 
+export const viewport: Viewport = {
+  themeColor: "#070b12",
+};
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="ko"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="ko" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

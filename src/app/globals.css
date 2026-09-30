@@ -1,26 +1,43 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* Figma 디자인(taxi-pitstopmap) 색상 토큰. Figma에 변수가 없어 값을 그대로 옮겼다. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ink: #070b12; /* 화면 배경 */
+  --color-surface: #111824; /* 카드, 패널 */
+  --color-raised: #182230; /* 버튼, 비활성 칩 */
+  --color-chip: #202c3b; /* 정보 칩 */
+  --color-line: #2b394b; /* 테두리 */
+  --color-fg: #f7fafc; /* 기본 글자 */
+  --color-muted: #9eacbc; /* 보조 글자 */
+  --color-faint: #6f7c8d; /* 흐린 글자, 비활성 */
+  --color-brand: #35e2a2; /* 주 색상 */
+  --color-brand-deep: #063e31;
+  --color-good: #39e58c; /* 주정차 가능 */
+  --color-warn: #ffb547; /* 불확실 */
+  --color-bad: #ff5d66; /* 어려움 */
+  --font-sans:
+    var(--font-inter), "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic",
+    "Noto Sans KR", sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-ink);
+  color: var(--color-fg);
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* 카카오맵 타일을 어두운 톤으로. 마커(data URI)와 오버레이는 영향받지 않는다. */
+.map-dark img[src*="daumcdn.net"] {
+  filter: invert(1) hue-rotate(180deg) brightness(0.82) contrast(0.92)
+    saturate(0.55);
 }
