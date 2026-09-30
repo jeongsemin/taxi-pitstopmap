@@ -75,26 +75,36 @@ export default function Home() {
     return () => controller.abort();
   }, [center, radius, refreshKey]);
 
-  const counts = useMemo(
-    () => ({
-      all: allPlaces.length,
-      restaurant: allPlaces.filter((p) => p.type === "restaurant").length,
-      toilet: allPlaces.filter((p) => p.type === "toilet").length,
-      parkable: allPlaces.filter(
-        (p) => parkingLevel(p.parking.score) === "good",
-      ).length,
-    }),
-    [allPlaces],
+  // 종류 필터와 주차 가능 필터는 함께 적용된다(AND).
+  // 각 버튼의 개수는 "그 버튼을 눌렀을 때 보이게 될 장소 수"라서, 다른 쪽 필터 조건을 반영한다.
+  const matchesParkable = useCallback(
+    (p: Place) => !parkableOnly || parkingLevel(p.parking.score) === "good",
+    [parkableOnly],
   );
 
   const places = useMemo(
     () =>
       allPlaces.filter(
+        (p) => (filter === "all" || p.type === filter) && matchesParkable(p),
+      ),
+    [allPlaces, filter, matchesParkable],
+  );
+
+  const counts = useMemo(
+    () => ({
+      all: allPlaces.filter(matchesParkable).length,
+      restaurant: allPlaces.filter(
+        (p) => p.type === "restaurant" && matchesParkable(p),
+      ).length,
+      toilet: allPlaces.filter((p) => p.type === "toilet" && matchesParkable(p))
+        .length,
+      parkable: allPlaces.filter(
         (p) =>
           (filter === "all" || p.type === filter) &&
-          (!parkableOnly || parkingLevel(p.parking.score) === "good"),
-      ),
-    [allPlaces, filter, parkableOnly],
+          parkingLevel(p.parking.score) === "good",
+      ).length,
+    }),
+    [allPlaces, filter, matchesParkable],
   );
 
   const focused = places.find((p) => p.id === focusId) ?? null;
