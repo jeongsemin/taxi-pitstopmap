@@ -6,6 +6,7 @@ export type ParkingScore = {
   nearestLotDistance: number | null;
   nearestLotName: string | null;
   reasons: string[];
+  reports: { parkable: number; enforced: number; full: number };
 };
 
 // 🟢 60 이상 / 🟡 30~59 / 🔴 30 미만 (규칙은 supabase/migrations/0002 참고)

@@ -29,6 +29,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -65,7 +66,7 @@ export default function Home() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [center, radius]);
+  }, [center, radius, refreshKey]);
 
   const places = useMemo(
     () =>
@@ -203,7 +204,12 @@ export default function Home() {
       </section>
 
       {selected && (
-        <PlaceDetail place={selected} onClose={() => setSelectedId(null)} />
+        <PlaceDetail
+          key={selected.id}
+          place={selected}
+          onClose={() => setSelectedId(null)}
+          onReported={() => setRefreshKey((k) => k + 1)}
+        />
       )}
     </div>
   );

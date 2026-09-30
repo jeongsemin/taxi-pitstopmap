@@ -34,6 +34,9 @@ type ScoreRow = {
   nearest_lot_distance: number | null;
   nearest_lot_name: string | null;
   reasons: string[];
+  reports_parkable: number;
+  reports_enforced: number;
+  reports_full: number;
 };
 
 const EMPTY_SCORE: ParkingScore = {
@@ -41,6 +44,7 @@ const EMPTY_SCORE: ParkingScore = {
   nearestLotDistance: null,
   nearestLotName: null,
   reasons: [],
+  reports: { parkable: 0, enforced: 0, full: 0 },
 };
 
 type ToiletRow = {
@@ -153,6 +157,11 @@ async function attachParkingScores(places: Place[]): Promise<boolean> {
       nearestLotDistance: r.nearest_lot_distance,
       nearestLotName: r.nearest_lot_name,
       reasons: r.reasons ?? [],
+      reports: {
+        parkable: r.reports_parkable,
+        enforced: r.reports_enforced,
+        full: r.reports_full,
+      },
     };
   }
   return true;

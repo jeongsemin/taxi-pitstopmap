@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { REPORT_OPTIONS, submitReport, type ReportType } from "@/lib/reports";
 import { LEVEL_STYLE, parkingLevel } from "@/lib/parking";
 import { kakaoMapRouteUrl, tmapRouteUrl } from "@/lib/navigation";
 import type { Place } from "@/types/place";
@@ -7,12 +9,34 @@ import type { Place } from "@/types/place";
 type Props = {
   place: Place;
   onClose: () => void;
+  onReported: () => void;
 };
 
-export default function PlaceDetail({ place, onClose }: Props) {
+export default function PlaceDetail({ place, onClose, onReported }: Props) {
+  const [submitting, setSubmitting] = useState<ReportType | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(
+    null,
+  );
+
   const level = parkingLevel(place.parking.score);
   const style = LEVEL_STYLE[level];
   const { parking } = place;
+  const { reports } = parking;
+  const reportTotal = reports.parkable + reports.enforced + reports.full;
+
+  const handleReport = async (type: ReportType) => {
+    setSubmitting(type);
+    setMessage(null);
+    try {
+      await submitReport(place, type);
+      setMessage({ ok: true, text: "제보 감사합니다! 점수에 반영됐어요." });
+      onReported();
+    } catch (e) {
+      setMessage({ ok: false, text: (e as Error).message });
+    } finally {
+      setSubmitting(null);
+    }
+  };
 
   return (
     <div
@@ -128,6 +152,37 @@ export default function PlaceDetail({ place, onClose }: Props) {
       <p className="mt-1 text-center text-xs text-zinc-500">
         T맵은 앱이 설치된 휴대폰에서만 열려요.
       </p>
+      <section className="mt-5 border-t pt-4">
+        <h3 className="text-base font-bold">여기에 차를 세워 보셨나요?</h3>
+        <p className="text-xs text-zinc-500">
+          {reportTotal > 0
+            ? `최근 30일 제보 · 가능 ${reports.parkable} · 단속 ${reports.enforced} · 자리 없음 ${reports.full}`
+            : "아직 제보가 없어요. 첫 제보를 남겨 주세요."}
+        </p>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {REPORT_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              onClick={() => handleReport(o.value)}
+              disabled={submitting !== null}
+              className={`min-h-14 rounded-xl px-1 text-sm font-bold disabled:opacity-50 ${o.className}`}
+            >
+              {submitting === o.value ? "전송 중…" : o.label}
+            </button>
+          ))}
+        </div>
+        {message && (
+          <p
+            role="status"
+            className={`mt-2 text-sm font-semibold ${
+              message.ok ? "text-green-700" : "text-red-600"
+            }`}
+          >
+            {message.text}
+          </p>
+        )}
+      </section>
+
       {place.url && (
         <a
           href={place.url}
