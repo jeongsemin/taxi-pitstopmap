@@ -29,6 +29,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -65,7 +66,7 @@ export default function Home() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [center, radius]);
+  }, [center, radius, refreshKey]);
 
   const places = useMemo(
     () =>
@@ -88,37 +89,20 @@ export default function Home() {
 
   return (
     <div className="flex h-dvh flex-col">
-      <header className="flex items-center justify-between gap-2 border-b px-4 py-3">
-        <div>
-          <h1 className="text-lg font-bold">🚕 taxi-pitstopmap</h1>
-          <p className="text-xs text-zinc-500">{locMessage}</p>
-        </div>
-        <div className="flex gap-1">
-          {RADIUS_OPTIONS.map((r) => (
-            <button
-              key={r}
-              onClick={() => changeRadius(r)}
-              className={`rounded-lg px-3 py-2 text-sm font-semibold ${
-                r === radius
-                  ? "bg-blue-600 text-white"
-                  : "bg-zinc-100 text-zinc-700"
-              }`}
-            >
-              {r >= 1000 ? `${r / 1000}km` : `${r}m`}
-            </button>
-          ))}
-        </div>
+      <header className="border-b px-4 py-2">
+        <h1 className="text-lg font-bold leading-tight">🚕 taxi-pitstopmap</h1>
+        <p className="text-xs text-zinc-500">{locMessage}</p>
       </header>
 
-      <div className="flex gap-2 border-b px-4 py-2">
+      <div className="grid grid-cols-4 gap-1.5 border-b px-3 py-2">
         {FILTERS.map((f) => (
           <button
             key={f.value}
             onClick={() => setFilter(f.value)}
-            className={`flex-1 rounded-lg px-3 py-3 text-base font-bold ${
+            className={`min-h-12 whitespace-nowrap rounded-lg px-1 text-sm font-bold ${
               f.value === filter
                 ? "bg-zinc-900 text-white dark:bg-white dark:text-black"
-                : "bg-zinc-100 text-zinc-700"
+                : "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100"
             }`}
           >
             {f.label}
@@ -127,17 +111,17 @@ export default function Home() {
         <button
           onClick={() => setParkableOnly((v) => !v)}
           aria-pressed={parkableOnly}
-          className={`flex-1 rounded-lg px-3 py-3 text-base font-bold ${
+          className={`min-h-12 whitespace-nowrap rounded-lg px-1 text-sm font-bold ${
             parkableOnly
               ? "bg-green-600 text-white"
-              : "bg-zinc-100 text-zinc-700"
+              : "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100"
           }`}
         >
-          🅿️ 주차 가능
+          🅿️ 주차
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 basis-1/2">
+      <div className="relative min-h-0 flex-[3]">
         <KakaoMap
           center={center}
           places={places}
@@ -145,31 +129,59 @@ export default function Home() {
           selectedId={selectedId}
           onSelect={handleSelect}
         />
+        <div className="absolute left-2 top-2 z-10 flex gap-1 rounded-xl bg-white/90 p-1 shadow dark:bg-zinc-900/90">
+          {RADIUS_OPTIONS.map((r) => (
+            <button
+              key={r}
+              onClick={() => changeRadius(r)}
+              aria-pressed={r === radius}
+              className={`min-h-10 rounded-lg px-2.5 text-sm font-bold ${
+                r === radius
+                  ? "bg-blue-600 text-white"
+                  : "text-zinc-700 dark:text-zinc-200"
+              }`}
+            >
+              {r >= 1000 ? `${r / 1000}km` : `${r}m`}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <section className="min-h-0 flex-1 basis-1/2 overflow-y-auto border-t">
+      <section className="min-h-0 flex-[2] overflow-y-auto border-t">
         <div className="sticky top-0 bg-white px-4 py-2 text-sm font-semibold dark:bg-black">
-          주변 장소 {loading ? "검색 중…" : `${places.length}곳`}
+          주변 장소{" "}
+          {loading ? (
+            <span className="animate-pulse text-zinc-500">검색 중…</span>
+          ) : (
+            `${places.length}곳`
+          )}
         </div>
         {error && <p className="px-4 py-2 text-sm text-red-600">{error}</p>}
+        {!loading && !error && places.length === 0 && (
+          <p className="px-4 py-6 text-center text-sm text-zinc-500">
+            조건에 맞는 장소가 없어요.
+            <br />
+            반경을 넓히거나 필터를 바꿔 보세요.
+          </p>
+        )}
         <ul>
           {places.map((p) => (
             <li key={p.id}>
               <button
                 onClick={() => setSelectedId(p.id)}
-                className={`w-full border-b px-4 py-3 text-left ${
+                className={`min-h-16 w-full border-b px-4 py-3 text-left ${
                   p.id === selectedId ? "bg-blue-50 dark:bg-zinc-900" : ""
                 }`}
               >
                 <div className="flex justify-between gap-2">
-                  <span className="font-semibold">
+                  <span className="text-base font-semibold">
                     {p.type === "toilet" ? "🚻" : "🍴"} {p.name}
                   </span>
                   <span className="shrink-0 text-sm text-zinc-500">
                     {p.distance}m
                   </span>
                 </div>
-                <div className="mt-1 text-sm">
+                <div className="mt-1 text-sm leading-snug">
                   <span className="font-semibold">
                     {LEVEL_STYLE[parkingLevel(p.parking.score)].dot}{" "}
                     {LEVEL_STYLE[parkingLevel(p.parking.score)].label}
@@ -192,7 +204,12 @@ export default function Home() {
       </section>
 
       {selected && (
-        <PlaceDetail place={selected} onClose={() => setSelectedId(null)} />
+        <PlaceDetail
+          key={selected.id}
+          place={selected}
+          onClose={() => setSelectedId(null)}
+          onReported={() => setRefreshKey((k) => k + 1)}
+        />
       )}
     </div>
   );
