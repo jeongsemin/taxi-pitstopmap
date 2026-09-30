@@ -173,7 +173,10 @@ export default function Home() {
                   </span>
                   <span className="text-zinc-500">
                     {" "}
-                    · {p.parking.reasons.join(", ") || "근처 주차장 정보 없음"}
+                    ·{" "}
+                    {p.parking.score === null
+                      ? "점수를 불러오지 못했어요"
+                      : p.parking.reasons.join(", ") || "근처 주차장 정보 없음"}
                   </span>
                 </div>
                 <div className="text-xs text-zinc-500">
