@@ -91,9 +91,9 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
         <button
           onClick={onClose}
           aria-label="뒤로"
-          className="absolute top-3.5 left-4 z-10 flex h-[52px] min-w-[52px] items-center justify-center rounded-2xl bg-raised shadow-[0_12px_28px_rgba(0,0,0,0.4)]"
+          className="fixed top-3.5 left-4 z-40 flex size-[39px] items-center justify-center rounded-xl bg-raised shadow-[0_12px_28px_rgba(0,0,0,0.4)]"
         >
-          <ArrowLeft size={22} aria-hidden />
+          <ArrowLeft size={17} aria-hidden />
         </button>
         <div className="absolute bottom-3.5 left-4 z-10 flex items-center gap-[7px] rounded-full bg-surface px-3 py-2 text-sm font-extrabold shadow-[0_12px_28px_rgba(0,0,0,0.4)]">
           <Navigation size={16} className="text-accent" aria-hidden />
