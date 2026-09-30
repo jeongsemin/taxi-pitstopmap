@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { supabase } from "@/lib/supabase";
+import type { ParkingScore } from "@/lib/parking";
 import type { Place, PlaceType } from "@/types/place";
 
 const KAKAO_CATEGORY_URL =
@@ -23,6 +24,21 @@ type KakaoDocument = {
 type KakaoResponse = {
   documents: KakaoDocument[];
   meta: { is_end: boolean };
+};
+
+type ScoreRow = {
+  id: string;
+  score: number;
+  nearest_lot_distance: number | null;
+  nearest_lot_name: string | null;
+  reasons: string[];
+};
+
+const EMPTY_SCORE: ParkingScore = {
+  score: 0,
+  nearestLotDistance: null,
+  nearestLotName: null,
+  reasons: [],
 };
 
 type ToiletRow = {
@@ -58,6 +74,7 @@ async function fetchToilets(
     lng: r.lng,
     distance: Math.round(r.distance),
     url: "",
+    parking: EMPTY_SCORE,
   }));
 }
 
@@ -99,11 +116,32 @@ async function fetchRestaurants(
         lng: Number(d.x),
         distance: Number(d.distance),
         url: d.place_url,
+        parking: EMPTY_SCORE,
       });
     }
     if (data.meta.is_end) break;
   }
   return places;
+}
+
+async function attachParkingScores(places: Place[]) {
+  if (places.length === 0) return;
+  const { data, error } = await supabase.rpc("score_places", {
+    points: places.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng })),
+  });
+  if (error) throw new Error(`주정차 점수 계산 실패: ${error.message}`);
+
+  const byId = new Map((data as ScoreRow[]).map((r) => [r.id, r]));
+  for (const p of places) {
+    const r = byId.get(p.id);
+    if (!r) continue;
+    p.parking = {
+      score: r.score,
+      nearestLotDistance: r.nearest_lot_distance,
+      nearestLotName: r.nearest_lot_name,
+      reasons: r.reasons ?? [],
+    };
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -146,6 +184,7 @@ export async function GET(request: NextRequest) {
       types.includes("toilet") ? fetchToilets(lat, lng, radius) : [],
     ]);
     const places = results.flat().sort((a, b) => a.distance - b.distance);
+    await attachParkingScores(places);
     return Response.json({ places });
   } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 502 });

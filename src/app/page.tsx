@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { LEVEL_STYLE, parkingLevel } from "@/lib/parking";
 import type { Place, PlaceType } from "@/types/place";
 
 const KakaoMap = dynamic(() => import("@/components/KakaoMap"), { ssr: false });
@@ -23,6 +24,7 @@ export default function Home() {
   const [radius, setRadius] = useState(500);
   const [allPlaces, setAllPlaces] = useState<Place[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
+  const [parkableOnly, setParkableOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -66,8 +68,12 @@ export default function Home() {
 
   const places = useMemo(
     () =>
-      filter === "all" ? allPlaces : allPlaces.filter((p) => p.type === filter),
-    [allPlaces, filter],
+      allPlaces.filter(
+        (p) =>
+          (filter === "all" || p.type === filter) &&
+          (!parkableOnly || parkingLevel(p.parking.score) === "good"),
+      ),
+    [allPlaces, filter, parkableOnly],
   );
 
   const changeRadius = (r: number) => {
@@ -115,6 +121,17 @@ export default function Home() {
             {f.label}
           </button>
         ))}
+        <button
+          onClick={() => setParkableOnly((v) => !v)}
+          aria-pressed={parkableOnly}
+          className={`flex-1 rounded-lg px-3 py-3 text-base font-bold ${
+            parkableOnly
+              ? "bg-green-600 text-white"
+              : "bg-zinc-100 text-zinc-700"
+          }`}
+        >
+          🅿️ 주차 가능
+        </button>
       </div>
 
       <div className="min-h-0 flex-1 basis-1/2">
@@ -147,6 +164,16 @@ export default function Home() {
                   </span>
                   <span className="shrink-0 text-sm text-zinc-500">
                     {p.distance}m
+                  </span>
+                </div>
+                <div className="mt-1 text-sm">
+                  <span className="font-semibold">
+                    {LEVEL_STYLE[parkingLevel(p.parking.score)].dot}{" "}
+                    {LEVEL_STYLE[parkingLevel(p.parking.score)].label}
+                  </span>
+                  <span className="text-zinc-500">
+                    {" "}
+                    · {p.parking.reasons.join(", ") || "근처 주차장 정보 없음"}
                   </span>
                 </div>
                 <div className="text-xs text-zinc-500">

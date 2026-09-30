@@ -1,3 +1,5 @@
+import type { ParkingScore } from "@/lib/parking";
+
 export type PlaceType = "restaurant" | "toilet";
 
 export type Place = {
@@ -11,4 +13,5 @@ export type Place = {
   lng: number;
   distance: number;
   url: string;
+  parking: ParkingScore;
 };
