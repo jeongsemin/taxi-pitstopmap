@@ -11,7 +11,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { StatusPill, isOpen24h } from "@/components/ui";
-import { kakaoMapRouteUrl, tmapRouteUrl } from "@/lib/navigation";
+import MapAppButtons from "@/components/MapAppButtons";
 import { LEVEL_STYLE, parkingLevel } from "@/lib/parking";
 import { REPORT_OPTIONS, submitReport, type ReportType } from "@/lib/reports";
 import type { Place } from "@/types/place";
@@ -74,22 +74,26 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
     <div
       role="dialog"
       aria-label={`${place.name} 상세`}
-      className="fixed inset-0 z-30 flex flex-col bg-ink"
+      className="fixed inset-0 z-30 flex flex-col overflow-y-auto bg-ink"
     >
-      <div className="relative h-[250px] shrink-0">
-        <KakaoMap
-          variant="detail"
-          center={mapCenter}
-          places={mapPlaces}
-          selectedId={place.id}
-          level={3}
-        />
+      {/* 지도는 화면 높이에 맞춰 줄어든다 (낮은 화면에서도 정보가 들어갈 자리를 확보) */}
+      <div className="relative h-[clamp(120px,24dvh,250px)] shrink-0">
+        {/* 상세의 지도는 위치 확인용이라 움직이지 않게 해서 화면 스크롤과 겹치지 않게 한다 */}
+        <div className="pointer-events-none h-full">
+          <KakaoMap
+            variant="detail"
+            center={mapCenter}
+            places={mapPlaces}
+            selectedId={place.id}
+            level={3}
+          />
+        </div>
         <button
           onClick={onClose}
           aria-label="뒤로"
-          className="absolute top-3.5 left-4 z-10 flex h-[52px] min-w-[52px] items-center justify-center rounded-2xl bg-raised shadow-[0_12px_28px_rgba(0,0,0,0.4)]"
+          className="fixed top-3.5 left-4 z-40 flex size-[39px] items-center justify-center rounded-xl bg-raised shadow-[0_12px_28px_rgba(0,0,0,0.4)]"
         >
-          <ArrowLeft size={22} aria-hidden />
+          <ArrowLeft size={17} aria-hidden />
         </button>
         <div className="absolute bottom-3.5 left-4 z-10 flex items-center gap-[7px] rounded-full bg-surface px-3 py-2 text-sm font-extrabold shadow-[0_12px_28px_rgba(0,0,0,0.4)]">
           <Navigation size={16} className="text-accent" aria-hidden />
@@ -97,8 +101,8 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
         </div>
       </div>
 
-      <div className="-mt-1 flex min-h-0 flex-1 flex-col rounded-t-[22px] bg-surface">
-        <div className="flex-1 space-y-4 overflow-y-auto px-5 pt-5 pb-4">
+      <div className="-mt-1 flex flex-1 flex-col rounded-t-[22px] bg-surface">
+        <div className="space-y-4 px-5 pt-5 pb-4">
           <div className="flex flex-col items-start gap-2">
             <StatusPill score={parking.score} size="lg" />
             <h2 className="text-[26px] leading-tight text-fg">{place.name}</h2>
@@ -205,7 +209,8 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
           )}
         </div>
 
-        <div className="flex shrink-0 items-start gap-2.5 border-t border-line px-5 pt-3 pb-4">
+        {/* 지도 앱 버튼: 화면 크기와 관계없이 항상 하단에 고정한다 (내용만 스크롤) */}
+        <div className="sticky bottom-0 mt-auto flex items-end gap-2.5 border-t border-line bg-surface px-5 pt-2.5 pb-3">
           {place.phone && (
             <a
               href={`tel:${place.phone}`}
@@ -215,22 +220,7 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
               <Phone size={24} aria-hidden />
             </a>
           )}
-          <a
-            href={tmapRouteUrl(place)}
-            title="T맵 앱이 설치된 휴대폰에서만 열려요"
-            className="flex h-[60px] shrink-0 items-center justify-center rounded-2xl bg-chip px-4 text-base font-extrabold"
-          >
-            T맵
-          </a>
-          <a
-            href={kakaoMapRouteUrl(place)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex h-[60px] min-w-0 flex-1 items-center justify-center gap-2.5 rounded-2xl bg-brand text-lg font-extrabold whitespace-nowrap text-on-brand"
-          >
-            <Navigation size={24} aria-hidden />
-            여기로 길안내
-          </a>
+          <MapAppButtons place={place} />
         </div>
       </div>
     </div>
