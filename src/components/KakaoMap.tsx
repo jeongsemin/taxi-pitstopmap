@@ -162,6 +162,14 @@ export default function KakaoMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 지도 중심은 기준 위치(center)가 바뀔 때만 옮긴다.
+  // 마커를 다시 그리는 효과와 분리하지 않으면 장소를 선택할 때마다 현재 위치로 튀었다가 이동한다.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    map.setCenter(new kakao.maps.LatLng(center.lat, center.lng));
+  }, [ready, center]);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map) return;
@@ -170,7 +178,6 @@ export default function KakaoMap({
     overlaysRef.current = [];
 
     const centerLatLng = new kakao.maps.LatLng(center.lat, center.lng);
-    map.setCenter(centerLatLng);
 
     if (variant === "explore") {
       const circle = new kakao.maps.Circle({
@@ -216,13 +223,18 @@ export default function KakaoMap({
     });
   }, [ready, center, places, radius, selectedId, onSelect, variant, theme]);
 
+  // 선택한 장소로 부드럽게 이동. 선택이 바뀔 때만 실행한다 (목록 갱신·필터 변경 때는 이동하지 않음).
+  const placesRef = useRef(places);
+  useEffect(() => {
+    placesRef.current = places;
+  }, [places]);
+
   useEffect(() => {
     const map = mapRef.current;
-    const p = places.find((x) => x.id === selectedId);
-    if (ready && map && p && variant === "explore") {
-      map.panTo(new kakao.maps.LatLng(p.lat, p.lng));
-    }
-  }, [ready, selectedId, places, variant]);
+    if (!ready || !map || !selectedId || variant !== "explore") return;
+    const p = placesRef.current.find((x) => x.id === selectedId);
+    if (p) map.panTo(new kakao.maps.LatLng(p.lat, p.lng));
+  }, [ready, selectedId, variant]);
 
   if (error) {
     return (
