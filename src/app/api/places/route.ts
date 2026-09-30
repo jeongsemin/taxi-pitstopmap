@@ -46,6 +46,9 @@ const EMPTY_SCORE: ParkingScore = {
 type ToiletRow = {
   id: number;
   name: string;
+  phone: string | null;
+  open_hours: string | null;
+  is_24h: boolean;
   lat: number;
   lng: number;
   address: string | null;
@@ -71,7 +74,9 @@ async function fetchToilets(
     name: r.name,
     category: "화장실",
     address: r.address ?? "",
-    phone: "",
+    phone: r.phone ?? "",
+    openHours: r.open_hours,
+    is24h: r.is_24h,
     lat: r.lat,
     lng: r.lng,
     distance: Math.round(r.distance),
@@ -114,6 +119,8 @@ async function fetchRestaurants(
         category: d.category_name.split(" > ").pop() ?? d.category_name,
         address: d.road_address_name || d.address_name,
         phone: d.phone,
+        openHours: null,
+        is24h: false,
         lat: Number(d.y),
         lng: Number(d.x),
         distance: Number(d.distance),

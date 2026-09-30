@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import PlaceDetail from "@/components/PlaceDetail";
 import { LEVEL_STYLE, parkingLevel } from "@/lib/parking";
 import type { Place, PlaceType } from "@/types/place";
 
@@ -75,6 +76,8 @@ export default function Home() {
       ),
     [allPlaces, filter, parkableOnly],
   );
+
+  const selected = places.find((p) => p.id === selectedId) ?? null;
 
   const changeRadius = (r: number) => {
     setLoading(true);
@@ -187,6 +190,10 @@ export default function Home() {
           ))}
         </ul>
       </section>
+
+      {selected && (
+        <PlaceDetail place={selected} onClose={() => setSelectedId(null)} />
+      )}
     </div>
   );
 }

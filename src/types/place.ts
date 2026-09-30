@@ -9,6 +9,8 @@ export type Place = {
   category: string;
   address: string;
   phone: string;
+  openHours: string | null;
+  is24h: boolean;
   lat: number;
   lng: number;
   distance: number;
