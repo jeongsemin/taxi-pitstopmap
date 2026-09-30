@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 
 export const RADIUS_OPTIONS = [500, 1000, 1500, 2000];
@@ -17,9 +17,28 @@ type Props = {
 // 슬라이더 아이콘 버튼을 누르면 검색 반경을 고르는 작은 메뉴가 열린다.
 export default function RadiusMenu({ radius, onChange }: Props) {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // 메뉴가 열려 있을 때 바깥을 누르거나 Esc 를 누르면 닫는다.
+  // 지도가 자체적으로 이벤트를 가로챌 수 있어 캡처 단계에서 감지한다.
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
 
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label={`검색 반경 ${radiusLabel(radius)}`}
