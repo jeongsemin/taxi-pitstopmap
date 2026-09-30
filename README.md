@@ -170,7 +170,7 @@ python data/scripts/load_parking_lots.py       # 카카오 주차장 (강남구)
 
 ## 📄 라이선스
 
-Copyright © 2026 <내이름>. All Rights Reserved.
+Copyright © 2026 jungsemin. All Rights Reserved.
 본 저장소의 코드는 저작권자의 허락 없이 복제, 수정, 배포, 상업적 이용을 할 수 없습니다.
 
 ## 🙏 데이터 출처
