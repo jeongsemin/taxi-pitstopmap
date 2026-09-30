@@ -11,6 +11,24 @@ type Props = {
   onSelect: (id: string) => void;
 };
 
+const MARKER_STYLE = {
+  restaurant: { color: "#ea580c", emoji: "🍴" },
+  toilet: { color: "#2563eb", emoji: "🚻" },
+} as const;
+
+function markerImage(type: keyof typeof MARKER_STYLE) {
+  const { color, emoji } = MARKER_STYLE[type];
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="44" viewBox="0 0 36 44">` +
+    `<path d="M18 43C18 43 33 28 33 17A15 15 0 0 0 3 17C3 28 18 43 18 43Z" fill="${color}" stroke="white" stroke-width="2"/>` +
+    `<text x="18" y="23" font-size="14" text-anchor="middle">${emoji}</text></svg>`;
+  return new kakao.maps.MarkerImage(
+    `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+    new kakao.maps.Size(36, 44),
+    { offset: new kakao.maps.Point(18, 44) },
+  );
+}
+
 const SDK_URL = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&autoload=false`;
 
 function loadSdk(): Promise<void> {
@@ -80,10 +98,15 @@ export default function KakaoMap({
     const me = new kakao.maps.Marker({ position: centerLatLng, map });
     overlaysRef.current.push(me);
 
+    const images = {
+      restaurant: markerImage("restaurant"),
+      toilet: markerImage("toilet"),
+    };
     places.forEach((p) => {
       const marker = new kakao.maps.Marker({
         position: new kakao.maps.LatLng(p.lat, p.lng),
         title: p.name,
+        image: images[p.type],
         map,
       });
       kakao.maps.event.addListener(marker, "click", () => onSelect(p.id));

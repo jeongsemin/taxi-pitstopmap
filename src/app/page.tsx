@@ -1,8 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useState } from "react";
-import type { Place } from "@/types/place";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Place, PlaceType } from "@/types/place";
 
 const KakaoMap = dynamic(() => import("@/components/KakaoMap"), { ssr: false });
 
@@ -10,11 +10,19 @@ const KakaoMap = dynamic(() => import("@/components/KakaoMap"), { ssr: false });
 const DEFAULT_CENTER = { lat: 37.4979, lng: 127.0276 };
 const RADIUS_OPTIONS = [500, 1000, 1500, 2000];
 
+type Filter = "all" | PlaceType;
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: "all", label: "전체" },
+  { value: "restaurant", label: "🍴 식당" },
+  { value: "toilet", label: "🚻 화장실" },
+];
+
 export default function Home() {
   const [center, setCenter] = useState(DEFAULT_CENTER);
   const [locMessage, setLocMessage] = useState("현재 위치 확인 중…");
   const [radius, setRadius] = useState(500);
-  const [places, setPlaces] = useState<Place[]>([]);
+  const [allPlaces, setAllPlaces] = useState<Place[]>([]);
+  const [filter, setFilter] = useState<Filter>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -44,7 +52,7 @@ export default function Home() {
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "검색 실패");
-        setPlaces(data.places);
+        setAllPlaces(data.places);
         setError(null);
       })
       .catch((e: Error) => {
@@ -55,6 +63,12 @@ export default function Home() {
       });
     return () => controller.abort();
   }, [center, radius]);
+
+  const places = useMemo(
+    () =>
+      filter === "all" ? allPlaces : allPlaces.filter((p) => p.type === filter),
+    [allPlaces, filter],
+  );
 
   const changeRadius = (r: number) => {
     setLoading(true);
@@ -87,6 +101,22 @@ export default function Home() {
         </div>
       </header>
 
+      <div className="flex gap-2 border-b px-4 py-2">
+        {FILTERS.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setFilter(f.value)}
+            className={`flex-1 rounded-lg px-3 py-3 text-base font-bold ${
+              f.value === filter
+                ? "bg-zinc-900 text-white dark:bg-white dark:text-black"
+                : "bg-zinc-100 text-zinc-700"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       <div className="min-h-0 flex-1 basis-1/2">
         <KakaoMap
           center={center}
@@ -99,7 +129,7 @@ export default function Home() {
 
       <section className="min-h-0 flex-1 basis-1/2 overflow-y-auto border-t">
         <div className="sticky top-0 bg-white px-4 py-2 text-sm font-semibold dark:bg-black">
-          주변 식당 {loading ? "검색 중…" : `${places.length}곳`}
+          주변 장소 {loading ? "검색 중…" : `${places.length}곳`}
         </div>
         {error && <p className="px-4 py-2 text-sm text-red-600">{error}</p>}
         <ul>
@@ -112,7 +142,9 @@ export default function Home() {
                 }`}
               >
                 <div className="flex justify-between gap-2">
-                  <span className="font-semibold">{p.name}</span>
+                  <span className="font-semibold">
+                    {p.type === "toilet" ? "🚻" : "🍴"} {p.name}
+                  </span>
                   <span className="shrink-0 text-sm text-zinc-500">
                     {p.distance}m
                   </span>

@@ -122,6 +122,8 @@ def main():
     elements = fetch_toilets(args.area)
     rows = [r for r in (to_row(e) for e in elements) if r]
     print(f"{args.area} 화장실 {len(rows)}건 수집")
+    if not rows:
+        sys.exit("수집 결과가 0건입니다. Overpass 응답을 확인하세요. (적재 중단)")
 
     if args.dry_run:
         for r in rows[:5]:

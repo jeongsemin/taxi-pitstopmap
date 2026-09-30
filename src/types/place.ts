@@ -1,5 +1,8 @@
+export type PlaceType = "restaurant" | "toilet";
+
 export type Place = {
   id: string;
+  type: PlaceType;
   name: string;
   category: string;
   address: string;
