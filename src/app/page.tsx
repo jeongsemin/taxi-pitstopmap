@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import PlaceDetail from "@/components/PlaceDetail";
 import { LEVEL_STYLE, parkingLevel } from "@/lib/parking";
 import type { Place, PlaceType } from "@/types/place";
 
@@ -75,6 +76,8 @@ export default function Home() {
       ),
     [allPlaces, filter, parkableOnly],
   );
+
+  const selected = places.find((p) => p.id === selectedId) ?? null;
 
   const changeRadius = (r: number) => {
     setLoading(true);
@@ -173,7 +176,10 @@ export default function Home() {
                   </span>
                   <span className="text-zinc-500">
                     {" "}
-                    · {p.parking.reasons.join(", ") || "근처 주차장 정보 없음"}
+                    ·{" "}
+                    {p.parking.score === null
+                      ? "점수를 불러오지 못했어요"
+                      : p.parking.reasons.join(", ") || "근처 주차장 정보 없음"}
                   </span>
                 </div>
                 <div className="text-xs text-zinc-500">
@@ -184,6 +190,10 @@ export default function Home() {
           ))}
         </ul>
       </section>
+
+      {selected && (
+        <PlaceDetail place={selected} onClose={() => setSelectedId(null)} />
+      )}
     </div>
   );
 }

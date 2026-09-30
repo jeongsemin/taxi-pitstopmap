@@ -7,6 +7,8 @@ const KAKAO_CATEGORY_URL =
   "https://dapi.kakao.com/v2/local/search/category.json";
 const RESTAURANT_CODE = "FD6";
 const MAX_PAGES = 3;
+const DEFAULT_RADIUS = 500;
+const MAX_RADIUS = 20000; // 카카오 로컬 API 반경 상한(m)
 
 type KakaoDocument = {
   id: string;
@@ -35,7 +37,7 @@ type ScoreRow = {
 };
 
 const EMPTY_SCORE: ParkingScore = {
-  score: 0,
+  score: null,
   nearestLotDistance: null,
   nearestLotName: null,
   reasons: [],
@@ -44,6 +46,9 @@ const EMPTY_SCORE: ParkingScore = {
 type ToiletRow = {
   id: number;
   name: string;
+  phone: string | null;
+  open_hours: string | null;
+  is_24h: boolean;
   lat: number;
   lng: number;
   address: string | null;
@@ -69,7 +74,9 @@ async function fetchToilets(
     name: r.name,
     category: "화장실",
     address: r.address ?? "",
-    phone: "",
+    phone: r.phone ?? "",
+    openHours: r.open_hours,
+    is24h: r.is_24h,
     lat: r.lat,
     lng: r.lng,
     distance: Math.round(r.distance),
@@ -112,6 +119,8 @@ async function fetchRestaurants(
         category: d.category_name.split(" > ").pop() ?? d.category_name,
         address: d.road_address_name || d.address_name,
         phone: d.phone,
+        openHours: null,
+        is24h: false,
         lat: Number(d.y),
         lng: Number(d.x),
         distance: Number(d.distance),
@@ -124,12 +133,16 @@ async function fetchRestaurants(
   return places;
 }
 
-async function attachParkingScores(places: Place[]) {
-  if (places.length === 0) return;
+// 점수 계산이 실패해도 장소 자체는 보여준다. 성공 여부를 반환한다.
+async function attachParkingScores(places: Place[]): Promise<boolean> {
+  if (places.length === 0) return true;
   const { data, error } = await supabase.rpc("score_places", {
     points: places.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng })),
   });
-  if (error) throw new Error(`주정차 점수 계산 실패: ${error.message}`);
+  if (error) {
+    console.error("주정차 점수 계산 실패:", error.message);
+    return false;
+  }
 
   const byId = new Map((data as ScoreRow[]).map((r) => [r.id, r]));
   for (const p of places) {
@@ -142,16 +155,17 @@ async function attachParkingScores(places: Place[]) {
       reasons: r.reasons ?? [],
     };
   }
+  return true;
 }
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const lat = Number(params.get("lat"));
   const lng = Number(params.get("lng"));
-  const radius = Math.min(
-    Math.max(Number(params.get("radius") ?? 500), 1),
-    20000,
-  );
+  const radiusParam = Number(params.get("radius") ?? 500);
+  const radius = Number.isFinite(radiusParam)
+    ? Math.min(Math.max(Math.round(radiusParam), 1), MAX_RADIUS)
+    : DEFAULT_RADIUS;
 
   if (
     !params.get("lat") ||
@@ -184,8 +198,8 @@ export async function GET(request: NextRequest) {
       types.includes("toilet") ? fetchToilets(lat, lng, radius) : [],
     ]);
     const places = results.flat().sort((a, b) => a.distance - b.distance);
-    await attachParkingScores(places);
-    return Response.json({ places });
+    const scored = await attachParkingScores(places);
+    return Response.json({ places, scored });
   } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 502 });
   }
