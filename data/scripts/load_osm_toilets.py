@@ -5,7 +5,8 @@
     python data/scripts/load_osm_toilets.py            # 강남구 (기본)
     python data/scripts/load_osm_toilets.py --dry-run  # DB 적재 없이 수집만
 
-DB 접속 정보는 .env.local 의 NEXT_PUBLIC_SUPABASE_URL, SUPABASE_DB_PASSWORD 를 사용한다.
+DB 접속 정보는 .env.local 의 NEXT_PUBLIC_SUPABASE_URL, SUPABASE_DB_PASSWORD,
+(IPv4 환경이면) SUPABASE_DB_HOST 를 사용한다.
 """
 
 import argparse
@@ -96,11 +97,16 @@ def connect():
             "SUPABASE_DB_PASSWORD 가 비어 있습니다. (https://<ref>.supabase.co 형식 필요)"
         )
     ref = match.group(1)
+    # 직접 접속(db.<ref>.supabase.co)은 IPv6 전용이라, IPv4 환경에서는
+    # Connect 화면의 Session pooler 호스트를 SUPABASE_DB_HOST 로 지정한다.
+    pooler_host = os.environ.get("SUPABASE_DB_HOST", "").strip()
+    host = pooler_host or f"db.{ref}.supabase.co"
+    user = f"postgres.{ref}" if pooler_host else "postgres"
     return psycopg2.connect(
-        host=f"db.{ref}.supabase.co",
+        host=host,
         port=5432,
         dbname="postgres",
-        user="postgres",
+        user=user,
         password=password,
         sslmode="require",
         connect_timeout=15,
