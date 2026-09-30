@@ -11,7 +11,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { StatusPill, isOpen24h } from "@/components/ui";
-import { kakaoMapRouteUrl, tmapRouteUrl } from "@/lib/navigation";
+import MapAppButtons from "@/components/MapAppButtons";
 import { LEVEL_STYLE, parkingLevel } from "@/lib/parking";
 import { REPORT_OPTIONS, submitReport, type ReportType } from "@/lib/reports";
 import type { Place } from "@/types/place";
@@ -205,7 +205,7 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
           )}
         </div>
 
-        <div className="flex shrink-0 items-start gap-2.5 border-t border-line px-5 pt-3 pb-4">
+        <div className="flex shrink-0 items-end gap-2.5 border-t border-line px-5 pt-3 pb-4">
           {place.phone && (
             <a
               href={`tel:${place.phone}`}
@@ -215,22 +215,7 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
               <Phone size={24} aria-hidden />
             </a>
           )}
-          <a
-            href={tmapRouteUrl(place)}
-            title="T맵 앱이 설치된 휴대폰에서만 열려요"
-            className="flex h-[60px] shrink-0 items-center justify-center rounded-2xl bg-chip px-4 text-base font-extrabold"
-          >
-            T맵
-          </a>
-          <a
-            href={kakaoMapRouteUrl(place)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex h-[60px] min-w-0 flex-1 items-center justify-center gap-2.5 rounded-2xl bg-brand text-lg font-extrabold whitespace-nowrap text-on-brand"
-          >
-            <Navigation size={24} aria-hidden />
-            여기로 길안내
-          </a>
+          <MapAppButtons place={place} />
         </div>
       </div>
     </div>
