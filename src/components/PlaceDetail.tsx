@@ -74,16 +74,20 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
     <div
       role="dialog"
       aria-label={`${place.name} 상세`}
-      className="fixed inset-0 z-30 flex flex-col bg-ink"
+      className="fixed inset-0 z-30 flex flex-col overflow-y-auto bg-ink"
     >
-      <div className="relative h-[250px] shrink-0">
-        <KakaoMap
-          variant="detail"
-          center={mapCenter}
-          places={mapPlaces}
-          selectedId={place.id}
-          level={3}
-        />
+      {/* 지도는 화면 높이에 맞춰 줄어든다 (낮은 화면에서도 정보가 들어갈 자리를 확보) */}
+      <div className="relative h-[clamp(120px,24dvh,250px)] shrink-0">
+        {/* 상세의 지도는 위치 확인용이라 움직이지 않게 해서 화면 스크롤과 겹치지 않게 한다 */}
+        <div className="pointer-events-none h-full">
+          <KakaoMap
+            variant="detail"
+            center={mapCenter}
+            places={mapPlaces}
+            selectedId={place.id}
+            level={3}
+          />
+        </div>
         <button
           onClick={onClose}
           aria-label="뒤로"
@@ -97,8 +101,8 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
         </div>
       </div>
 
-      <div className="-mt-1 flex min-h-0 flex-1 flex-col rounded-t-[22px] bg-surface">
-        <div className="flex-1 space-y-4 overflow-y-auto px-5 pt-5 pb-4">
+      <div className="-mt-1 flex flex-1 flex-col rounded-t-[22px] bg-surface">
+        <div className="space-y-4 px-5 pt-5 pb-4">
           <div className="flex flex-col items-start gap-2">
             <StatusPill score={parking.score} size="lg" />
             <h2 className="text-[26px] leading-tight text-fg">{place.name}</h2>
@@ -205,7 +209,8 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
           )}
         </div>
 
-        <div className="flex shrink-0 items-end gap-2.5 border-t border-line px-5 pt-3 pb-4">
+        {/* 지도 앱 버튼: 화면이 충분히 클 때만 아래에 고정하고, 낮은 화면에서는 내용과 함께 스크롤한다 */}
+        <div className="sticky bottom-0 mt-auto flex items-end gap-2.5 border-t border-line bg-surface px-5 pt-3 pb-4 [@media(max-height:620px)]:static">
           {place.phone && (
             <a
               href={`tel:${place.phone}`}
