@@ -71,14 +71,14 @@ export function FilterPill({
       aria-pressed={active}
       className={`flex h-11 shrink-0 items-center gap-[7px] rounded-full border px-3.5 text-sm font-extrabold whitespace-nowrap ${
         active
-          ? "border-brand bg-brand text-ink"
+          ? "border-brand bg-brand text-on-brand"
           : "border-line bg-raised text-fg"
       }`}
     >
       {Icon && <Icon size={18} aria-hidden />}
       {label}
       <span
-        className={`text-xs font-bold ${active ? "text-brand-deep" : "text-faint"}`}
+        className={`text-xs font-bold ${active ? "text-on-brand/70" : "text-faint"}`}
       >
         {count}
       </span>

@@ -11,9 +11,9 @@ export const REPORT_OPTIONS: {
   {
     value: "parkable",
     label: "🟢 세울 수 있었음",
-    className: "bg-good text-ink",
+    className: "bg-good text-on-solid",
   },
-  { value: "enforced", label: "🔴 단속됨", className: "bg-bad text-ink" },
+  { value: "enforced", label: "🔴 단속됨", className: "bg-bad text-on-solid" },
   { value: "full", label: "⚪ 자리 없음", className: "bg-chip text-fg" },
 ];
 

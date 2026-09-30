@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Toilet, Utensils, type IconNode } from "lucide";
 import { LEVEL_STYLE, parkingLevel, type ParkingLevel } from "@/lib/parking";
+import { useTheme, type ResolvedTheme } from "@/lib/theme";
 import type { Place, PlaceType } from "@/types/place";
 
 type Props = {
@@ -19,6 +20,31 @@ type Props = {
 };
 
 const INK = "#070b12";
+
+// 마커 테두리는 지도 배경과 구분되도록 테마별로 다르게 둔다
+const MARKER_BORDER: Record<ResolvedTheme, string> = {
+  dark: "#070b12",
+  light: "#ffffff",
+};
+
+// 검색 반경 원 색
+const RADIUS_STYLE: Record<
+  ResolvedTheme,
+  { stroke: string; strokeOpacity: number; fill: string; fillOpacity: number }
+> = {
+  dark: {
+    stroke: "#35e2a2",
+    strokeOpacity: 0.55,
+    fill: "#35e2a2",
+    fillOpacity: 0.06,
+  },
+  light: {
+    stroke: "#191919",
+    strokeOpacity: 0.45,
+    fill: "#fee500",
+    fillOpacity: 0.12,
+  },
+};
 
 const MARKER_ICON: Record<PlaceType, IconNode> = {
   restaurant: Utensils,
@@ -39,8 +65,13 @@ function iconToSvg(nodes: IconNode) {
 // 마커 색은 주정차 점수, 아이콘은 장소 종류. 선택된 마커는 더 크게 그린다.
 const imageCache = new Map<string, kakao.maps.MarkerImage>();
 
-function markerImage(type: PlaceType, level: ParkingLevel, selected: boolean) {
-  const cacheKey = `${type}-${level}-${selected}`;
+function markerImage(
+  type: PlaceType,
+  level: ParkingLevel,
+  selected: boolean,
+  theme: ResolvedTheme,
+) {
+  const cacheKey = `${type}-${level}-${selected}-${theme}`;
   const cached = imageCache.get(cacheKey);
   if (cached) return cached;
 
@@ -51,7 +82,7 @@ function markerImage(type: PlaceType, level: ParkingLevel, selected: boolean) {
   const offset = (size - icon) / 2;
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
-    `<circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - border / 2}" fill="${LEVEL_STYLE[level].color}" stroke="${INK}" stroke-width="${border}"/>` +
+    `<circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - border / 2}" fill="${LEVEL_STYLE[level].color}" stroke="${MARKER_BORDER[theme]}" stroke-width="${border}"/>` +
     `<g transform="translate(${offset} ${offset}) scale(${icon / 24})" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">${iconToSvg(MARKER_ICON[type])}</g>` +
     `</svg>`;
   const image = new kakao.maps.MarkerImage(
@@ -105,6 +136,7 @@ export default function KakaoMap({
   const mapRef = useRef<kakao.maps.Map | null>(null);
   const overlaysRef = useRef<(kakao.maps.Marker | kakao.maps.Circle)[]>([]);
   const onMapMoveRef = useRef(onMapMove);
+  const { resolved: theme } = useTheme();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -145,10 +177,10 @@ export default function KakaoMap({
         center: centerLatLng,
         radius,
         strokeWeight: 2,
-        strokeColor: "#35e2a2",
-        strokeOpacity: 0.55,
-        fillColor: "#35e2a2",
-        fillOpacity: 0.06,
+        strokeColor: RADIUS_STYLE[theme].stroke,
+        strokeOpacity: RADIUS_STYLE[theme].strokeOpacity,
+        fillColor: RADIUS_STYLE[theme].fill,
+        fillOpacity: RADIUS_STYLE[theme].fillOpacity,
       });
       circle.setMap(map);
       overlaysRef.current.push(circle);
@@ -168,7 +200,12 @@ export default function KakaoMap({
       const marker = new kakao.maps.Marker({
         position: new kakao.maps.LatLng(p.lat, p.lng),
         title: p.name,
-        image: markerImage(p.type, parkingLevel(p.parking.score), selected),
+        image: markerImage(
+          p.type,
+          parkingLevel(p.parking.score),
+          selected,
+          theme,
+        ),
         zIndex: selected ? 5 : 1,
         map,
       });
@@ -177,7 +214,7 @@ export default function KakaoMap({
       }
       overlaysRef.current.push(marker);
     });
-  }, [ready, center, places, radius, selectedId, onSelect, variant]);
+  }, [ready, center, places, radius, selectedId, onSelect, variant, theme]);
 
   useEffect(() => {
     const map = mapRef.current;

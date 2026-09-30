@@ -27,7 +27,7 @@ export default function RadiusMenu({ radius, onChange }: Props) {
         className="flex h-[52px] min-w-[52px] items-center justify-center gap-1.5 rounded-2xl bg-raised px-3.5 text-sm font-extrabold shadow-[0_12px_28px_rgba(0,0,0,0.4)]"
       >
         <SlidersHorizontal size={22} aria-hidden />
-        <span className="text-brand">{radiusLabel(radius)}</span>
+        <span className="text-accent">{radiusLabel(radius)}</span>
       </button>
       {open && (
         <div
@@ -47,7 +47,7 @@ export default function RadiusMenu({ radius, onChange }: Props) {
                 setOpen(false);
               }}
               className={`flex h-12 w-full items-center px-4 text-base font-extrabold ${
-                r === radius ? "text-brand" : "text-fg"
+                r === radius ? "text-accent" : "text-fg"
               }`}
             >
               {radiusLabel(r)}

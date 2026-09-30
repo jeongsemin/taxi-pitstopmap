@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { ThemeProvider } from "@/lib/theme";
 import "./globals.css";
 
 const inter = Inter({
@@ -13,13 +14,29 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#070b12",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#070b12" },
+  ],
 };
+
+// 첫 페인트 전에 저장된 테마 설정(없으면 기기 설정)을 적용해 화면 깜빡임을 막는다.
+// 규칙은 src/lib/theme.tsx 와 같아야 한다.
+const THEME_INIT_SCRIPT = `(function(){try{var p=localStorage.getItem("theme-pref");var d=window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.dataset.theme=p==="light"||p==="dark"?p:(d?"dark":"light")}catch(e){document.documentElement.dataset.theme="dark"}})()`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ko" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html
+      lang="ko"
+      className={`${inter.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
+      <body className="min-h-full flex flex-col">
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

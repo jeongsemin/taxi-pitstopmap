@@ -1,10 +1,11 @@
-import { List, Map, type LucideIcon } from "lucide-react";
+import { List, Map, Settings, type LucideIcon } from "lucide-react";
 
-export type Tab = "map" | "list";
+export type Tab = "map" | "list" | "settings";
 
 const ITEMS: { value: Tab; label: string; icon: LucideIcon }[] = [
   { value: "map", label: "지도", icon: Map },
   { value: "list", label: "목록", icon: List },
+  { value: "settings", label: "설정", icon: Settings },
 ];
 
 export default function BottomNav({
@@ -28,7 +29,7 @@ export default function BottomNav({
             aria-current={active ? "page" : undefined}
             className={`flex h-[54px] w-24 flex-col items-center justify-center gap-1 rounded-[10px] text-xs ${
               active
-                ? "bg-brand-deep font-extrabold text-brand"
+                ? "bg-brand-soft font-extrabold text-accent"
                 : "font-semibold text-faint"
             }`}
           >

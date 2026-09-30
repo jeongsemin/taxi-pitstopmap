@@ -63,7 +63,7 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
 
   const noteTone =
     level === "good"
-      ? "bg-brand-deep"
+      ? "bg-good/12"
       : level === "unsure"
         ? "bg-warn/12"
         : level === "hard"
@@ -92,7 +92,7 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
           <ArrowLeft size={22} aria-hidden />
         </button>
         <div className="absolute bottom-3.5 left-4 z-10 flex items-center gap-[7px] rounded-full bg-surface px-3 py-2 text-sm font-extrabold shadow-[0_12px_28px_rgba(0,0,0,0.4)]">
-          <Navigation size={16} className="text-brand" aria-hidden />
+          <Navigation size={16} className="text-accent" aria-hidden />
           현재 위치에서 {place.distance}m
         </div>
       </div>
@@ -127,7 +127,7 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
 
           <div className={`flex gap-3 rounded-2xl p-3.5 ${noteTone}`}>
             <div
-              className={`flex size-[38px] shrink-0 items-center justify-center rounded-full bg-white/10 ${style.text}`}
+              className={`flex size-[38px] shrink-0 items-center justify-center rounded-full bg-fg/10 ${style.text}`}
             >
               <ShieldCheck size={21} aria-hidden />
             </div>
@@ -226,7 +226,7 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
             href={kakaoMapRouteUrl(place)}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex h-[60px] min-w-0 flex-1 items-center justify-center gap-2.5 rounded-2xl bg-brand text-lg font-extrabold whitespace-nowrap text-ink"
+            className="flex h-[60px] min-w-0 flex-1 items-center justify-center gap-2.5 rounded-2xl bg-brand text-lg font-extrabold whitespace-nowrap text-on-brand"
           >
             <Navigation size={24} aria-hidden />
             여기로 길안내

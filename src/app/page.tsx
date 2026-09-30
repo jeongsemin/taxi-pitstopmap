@@ -8,6 +8,7 @@ import FilterBar, { type Filter } from "@/components/FilterBar";
 import PlaceCard, { reasonText } from "@/components/PlaceCard";
 import PlaceDetail from "@/components/PlaceDetail";
 import RadiusMenu, { radiusLabel } from "@/components/RadiusMenu";
+import SettingsScreen from "@/components/SettingsScreen";
 import { CategoryIcon, StatusPill, isOpen24h } from "@/components/ui";
 import { parkingLevel } from "@/lib/parking";
 import type { Place } from "@/types/place";
@@ -135,7 +136,7 @@ export default function Home() {
 
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2 pt-4">
           <div className="pointer-events-auto mx-4 flex h-14 items-center gap-3 rounded-2xl bg-surface pr-1.5 pl-4 shadow-[0_12px_28px_rgba(0,0,0,0.4)]">
-            <MapPin size={23} className="shrink-0 text-brand" aria-hidden />
+            <MapPin size={23} className="shrink-0 text-accent" aria-hidden />
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-semibold text-muted">
                 {locMessage}
@@ -171,7 +172,7 @@ export default function Home() {
                 <div className="flex items-center gap-2 pr-11">
                   <CategoryIcon place={card} size={38} />
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-brand">선택한 장소</p>
+                    <p className="text-xs font-bold text-accent">선택한 장소</p>
                     <p className="truncate text-[22px] leading-tight font-extrabold">
                       {card.name}
                     </p>
@@ -242,6 +243,7 @@ export default function Home() {
             </div>
           </div>
         )}
+        {tab === "settings" && <SettingsScreen />}
       </main>
 
       <BottomNav tab={tab} onChange={setTab} />
