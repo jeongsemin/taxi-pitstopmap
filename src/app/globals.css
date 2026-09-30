@@ -1,26 +1,87 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/*
+ * 색상 토큰. 실제 값은 아래 :root(다크)와 :root[data-theme="light"](라이트)에 있고,
+ * <html data-theme> 를 바꾸면 화면 전체가 전환된다. (src/lib/theme.tsx)
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ink: var(--ink); /* 화면 배경 */
+  --color-surface: var(--surface); /* 카드, 패널 */
+  --color-raised: var(--raised); /* 버튼, 비활성 칩 */
+  --color-chip: var(--chip); /* 정보 칩 */
+  --color-line: var(--line); /* 테두리 */
+  --color-fg: var(--fg); /* 기본 글자 */
+  --color-muted: var(--muted); /* 보조 글자 */
+  --color-faint: var(--faint); /* 흐린 글자, 비활성 */
+  --color-brand: var(--brand); /* 주 색상 (채움) */
+  --color-on-brand: var(--on-brand); /* 주 색상 위 글자 */
+  --color-brand-soft: var(--brand-soft); /* 주 색상 옅은 배경 */
+  --color-accent: var(--accent); /* 흰/어두운 면 위 강조 글자·아이콘 */
+  --color-on-solid: var(--on-solid); /* 상태색(초록/빨강) 채움 위 글자 */
+  --color-good: var(--good); /* 주정차 가능 */
+  --color-warn: var(--warn); /* 불확실 */
+  --color-bad: var(--bad); /* 어려움 */
+  --font-sans:
+    var(--font-inter), "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic",
+    "Noto Sans KR", sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* 다크: Figma 디자인 색상 */
+:root {
+  color-scheme: dark;
+  --ink: #070b12;
+  --surface: #111824;
+  --raised: #182230;
+  --chip: #202c3b;
+  --line: #2b394b;
+  --fg: #f7fafc;
+  --muted: #9eacbc;
+  --faint: #6f7c8d;
+  --brand: #35e2a2;
+  --on-brand: #070b12;
+  --brand-soft: #063e31;
+  --accent: #35e2a2;
+  --on-solid: #070b12;
+  --good: #39e58c;
+  --warn: #ffb547;
+  --bad: #ff5d66;
+}
+
+/* 라이트: 카카오 옐로우(#FEE500)와 검정 텍스트, 흰 면 중심 (카카오T 스타일) */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ink: #f2f3f5;
+  --surface: #ffffff;
+  --raised: #f1f3f5;
+  --chip: #eceef1;
+  --line: #e3e5e8;
+  --fg: #191919;
+  --muted: #6b6f76;
+  --faint: #9a9ea5;
+  --brand: #fee500;
+  --on-brand: #191919;
+  --brand-soft: #fff4a6;
+  --accent: #191919;
+  --on-solid: #ffffff;
+  --good: #12905a;
+  --warn: #c77700;
+  --bad: #e5484d;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--ink);
+  color: var(--fg);
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* 다크 테마에서만 카카오맵 타일을 어둡게. 마커(data URI)와 오버레이는 영향받지 않는다. */
+:root[data-theme="dark"] .map-dark img[src*="daumcdn.net"] {
+  filter: invert(1) hue-rotate(180deg) brightness(0.82) contrast(0.92)
+    saturate(0.55);
 }
