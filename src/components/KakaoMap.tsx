@@ -223,18 +223,7 @@ export default function KakaoMap({
     });
   }, [ready, center, places, radius, selectedId, onSelect, variant, theme]);
 
-  // 선택한 장소로 부드럽게 이동. 선택이 바뀔 때만 실행한다 (목록 갱신·필터 변경 때는 이동하지 않음).
-  const placesRef = useRef(places);
-  useEffect(() => {
-    placesRef.current = places;
-  }, [places]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!ready || !map || !selectedId || variant !== "explore") return;
-    const p = placesRef.current.find((x) => x.id === selectedId);
-    if (p) map.panTo(new kakao.maps.LatLng(p.lat, p.lng));
-  }, [ready, selectedId, variant]);
+  // 장소를 선택해도 지도 시점은 바꾸지 않는다. 선택은 마커 크기와 하단 카드로만 표시한다.
 
   if (error) {
     return (
