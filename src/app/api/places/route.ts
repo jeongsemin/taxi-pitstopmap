@@ -1,32 +1,14 @@
 import type { NextRequest } from "next/server";
 import { supabase } from "@/lib/supabase";
-import type { ParkingScore } from "@/lib/parking";
+import {
+  fetchRestaurants,
+  type RestaurantResult,
+} from "@/lib/kakao-restaurants";
+import { EMPTY_PARKING_SCORE } from "@/lib/parking";
 import type { Place, PlaceType } from "@/types/place";
 
-const KAKAO_CATEGORY_URL =
-  "https://dapi.kakao.com/v2/local/search/category.json";
-const RESTAURANT_CODE = "FD6";
-const MAX_PAGES = 3;
 const DEFAULT_RADIUS = 500;
 const MAX_RADIUS = 20000; // 카카오 로컬 API 반경 상한(m)
-
-type KakaoDocument = {
-  id: string;
-  place_name: string;
-  category_name: string;
-  road_address_name: string;
-  address_name: string;
-  phone: string;
-  x: string;
-  y: string;
-  distance: string;
-  place_url: string;
-};
-
-type KakaoResponse = {
-  documents: KakaoDocument[];
-  meta: { is_end: boolean };
-};
 
 type ScoreRow = {
   id: string;
@@ -37,14 +19,7 @@ type ScoreRow = {
   reports_parkable: number;
   reports_enforced: number;
   reports_full: number;
-};
-
-const EMPTY_SCORE: ParkingScore = {
-  score: null,
-  nearestLotDistance: null,
-  nearestLotName: null,
-  reasons: [],
-  reports: { parkable: 0, enforced: 0, full: 0 },
+  no_data: boolean;
 };
 
 type ToiletRow = {
@@ -85,56 +60,8 @@ async function fetchToilets(
     lng: r.lng,
     distance: Math.round(r.distance),
     url: "",
-    parking: EMPTY_SCORE,
+    parking: EMPTY_PARKING_SCORE,
   }));
-}
-
-async function fetchRestaurants(
-  lat: number,
-  lng: number,
-  radius: number,
-  key: string,
-): Promise<Place[]> {
-  const places: Place[] = [];
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const url = new URL(KAKAO_CATEGORY_URL);
-    url.search = new URLSearchParams({
-      category_group_code: RESTAURANT_CODE,
-      x: String(lng),
-      y: String(lat),
-      radius: String(radius),
-      sort: "distance",
-      size: "15",
-      page: String(page),
-    }).toString();
-
-    const res = await fetch(url, {
-      headers: { Authorization: `KakaoAK ${key}` },
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error(`카카오 API 호출 실패 (${res.status})`);
-
-    const data: KakaoResponse = await res.json();
-    for (const d of data.documents) {
-      places.push({
-        id: `kakao-${d.id}`,
-        type: "restaurant",
-        name: d.place_name,
-        category: d.category_name.split(" > ").pop() ?? d.category_name,
-        address: d.road_address_name || d.address_name,
-        phone: d.phone,
-        openHours: null,
-        is24h: false,
-        lat: Number(d.y),
-        lng: Number(d.x),
-        distance: Number(d.distance),
-        url: d.place_url,
-        parking: EMPTY_SCORE,
-      });
-    }
-    if (data.meta.is_end) break;
-  }
-  return places;
 }
 
 // 점수 계산이 실패해도 장소 자체는 보여준다. 성공 여부를 반환한다.
@@ -154,6 +81,7 @@ async function attachParkingScores(places: Place[]): Promise<boolean> {
     if (!r) continue;
     p.parking = {
       score: r.score,
+      noData: r.no_data ?? false,
       nearestLotDistance: r.nearest_lot_distance,
       nearestLotName: r.nearest_lot_name,
       reasons: r.reasons ?? [],
@@ -199,16 +127,29 @@ export async function GET(request: NextRequest) {
       ? [typeParam]
       : ["restaurant", "toilet"];
 
+  const noRestaurants: RestaurantResult = { places: [], total: 0 };
+
   try {
-    const results = await Promise.all([
+    const [restaurants, toilets] = await Promise.all([
       types.includes("restaurant")
         ? fetchRestaurants(lat, lng, radius, key)
-        : [],
+        : noRestaurants,
       types.includes("toilet") ? fetchToilets(lat, lng, radius) : [],
     ]);
-    const places = results.flat().sort((a, b) => a.distance - b.distance);
+    const places = [...restaurants.places, ...toilets].sort(
+      (a, b) => a.distance - b.distance,
+    );
     const scored = await attachParkingScores(places);
-    return Response.json({ places, scored });
+    return Response.json({
+      places,
+      scored,
+      // 식당은 카카오 검색 한도 때문에 반경 안 전부를 받지 못할 수 있다. 실제 개수를 함께 알려준다.
+      restaurants: {
+        total: restaurants.total,
+        shown: restaurants.places.length,
+        truncated: restaurants.total > restaurants.places.length,
+      },
+    });
   } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 502 });
   }

@@ -22,6 +22,8 @@ type Props = {
   place: Place;
   onClose: () => void;
   onReported: () => void;
+  // 거리를 어디서부터 잰 값인지: 내 위치 / 지도에서 고른 검색 위치
+  distanceFrom?: "me" | "search";
 };
 
 function openHoursText(place: Place) {
@@ -29,7 +31,12 @@ function openHoursText(place: Place) {
   return place.openHours ?? "정보 없음";
 }
 
-export default function PlaceDetail({ place, onClose, onReported }: Props) {
+export default function PlaceDetail({
+  place,
+  onClose,
+  onReported,
+  distanceFrom = "me",
+}: Props) {
   const [submitting, setSubmitting] = useState<ReportType | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(
     null,
@@ -97,7 +104,8 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
         </button>
         <div className="absolute bottom-3.5 left-4 z-10 flex items-center gap-[7px] rounded-full bg-surface px-3 py-2 text-sm font-extrabold shadow-[0_12px_28px_rgba(0,0,0,0.4)]">
           <Navigation size={16} className="text-accent" aria-hidden />
-          현재 위치에서 {place.distance}m
+          {distanceFrom === "search" ? "검색 위치" : "현재 위치"}에서{" "}
+          {place.distance}m
         </div>
       </div>
 
@@ -137,10 +145,19 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
             </div>
             <div className="min-w-0">
               <p className="text-base font-extrabold text-fg">
-                {parking.score === null
-                  ? "주정차 점수를 불러오지 못했어요"
-                  : "주정차 판단 근거"}
+                {parking.score !== null
+                  ? "주정차 판단 근거"
+                  : parking.noData
+                    ? "이 지역은 주정차 정보가 아직 없어요"
+                    : "주정차 점수를 불러오지 못했어요"}
               </p>
+              {parking.score === null && parking.noData && (
+                <p className="mt-1 text-sm text-fg/90">
+                  주차장 데이터가 있는 곳은 아직 서울 강남구뿐이에요. 이곳은
+                  &quot;세울 수 없다&quot;는 뜻이 아니라 알 수 없다는 뜻이에요.
+                  직접 세워 보셨다면 아래에서 제보해 주세요.
+                </p>
+              )}
               {parking.score !== null && (
                 <ul className="mt-1 list-disc pl-4 text-sm text-fg/90">
                   {parking.reasons.length > 0 ? (
