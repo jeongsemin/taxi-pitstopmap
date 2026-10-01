@@ -11,6 +11,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "taxi-pitstopmap",
   description: "택시 기사를 위한 주정차 가능 식당·화장실 안내",
+  icons: { apple: "/apple-icon.png" },
+  // iOS 홈 화면에 추가했을 때 앱처럼 열린다 (안드로이드는 manifest 사용)
+  appleWebApp: { capable: true, title: "쉼터지도", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
