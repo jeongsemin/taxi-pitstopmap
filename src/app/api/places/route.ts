@@ -5,10 +5,33 @@ import {
   type RestaurantResult,
 } from "@/lib/kakao-restaurants";
 import { EMPTY_PARKING_SCORE } from "@/lib/parking";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import type { Place, PlaceType } from "@/types/place";
 
 const DEFAULT_RADIUS = 500;
-const MAX_RADIUS = 20000; // 카카오 로컬 API 반경 상한(m)
+const MAX_RADIUS = 3000; // 화면에서 고를 수 있는 최대 반경(2km)보다 조금 넉넉하게
+
+// 서비스 지역(대한민국) 밖 좌표는 받지 않는다 (엉뚱한 좌표로 호출을 낭비하는 것을 막는다)
+const KOREA_BOUNDS = { minLat: 33, maxLat: 39, minLng: 124, maxLng: 132 };
+
+// IP 하나당 허용하는 조회 수 (정상 사용은 지도를 옮길 때마다 1회 정도)
+const RATE_LIMIT = 40;
+const RATE_WINDOW_MS = 60_000;
+
+// 같은 지역을 보는 사용자들이 CDN 캐시를 함께 쓰도록 좌표를 약 11m 단위로 맞춘다.
+const roundCoord = (v: number) => Math.round(v * 1e4) / 1e4;
+
+// 성공 응답은 CDN 에 잠깐 캐시해 같은 지역 조회가 서버와 카카오를 다시 부르지 않게 한다.
+// 제보가 점수에 바로 반영되도록 짧게(30초) 두고, 화면은 제보 직후에 캐시를 우회해서 다시 조회한다.
+const CACHE_OK = "public, s-maxage=30, stale-while-revalidate=60";
+const NO_CACHE = "no-store";
+
+function json(body: unknown, status = 200, cacheControl = NO_CACHE) {
+  return Response.json(body, {
+    status,
+    headers: { "Cache-Control": cacheControl },
+  });
+}
 
 type ScoreRow = {
   id: string;
@@ -96,10 +119,28 @@ async function attachParkingScores(places: Place[]): Promise<boolean> {
 }
 
 export async function GET(request: NextRequest) {
+  const limited = checkRateLimit(
+    clientIp(request.headers),
+    RATE_LIMIT,
+    RATE_WINDOW_MS,
+  );
+  if (!limited.ok) {
+    return Response.json(
+      { error: "요청이 많아 잠시 후 다시 시도해 주세요." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(limited.retryAfterSec),
+          "Cache-Control": NO_CACHE,
+        },
+      },
+    );
+  }
+
   const params = request.nextUrl.searchParams;
-  const lat = Number(params.get("lat"));
-  const lng = Number(params.get("lng"));
-  const radiusParam = Number(params.get("radius") ?? 500);
+  const rawLat = Number(params.get("lat"));
+  const rawLng = Number(params.get("lng"));
+  const radiusParam = Number(params.get("radius") ?? DEFAULT_RADIUS);
   const radius = Number.isFinite(radiusParam)
     ? Math.min(Math.max(Math.round(radiusParam), 1), MAX_RADIUS)
     : DEFAULT_RADIUS;
@@ -107,18 +148,25 @@ export async function GET(request: NextRequest) {
   if (
     !params.get("lat") ||
     !params.get("lng") ||
-    !Number.isFinite(lat) ||
-    !Number.isFinite(lng)
+    !Number.isFinite(rawLat) ||
+    !Number.isFinite(rawLng)
   ) {
-    return Response.json({ error: "lat, lng가 필요합니다." }, { status: 400 });
+    return json({ error: "lat, lng가 필요합니다." }, 400);
   }
+  if (
+    rawLat < KOREA_BOUNDS.minLat ||
+    rawLat > KOREA_BOUNDS.maxLat ||
+    rawLng < KOREA_BOUNDS.minLng ||
+    rawLng > KOREA_BOUNDS.maxLng
+  ) {
+    return json({ error: "서비스 지역(대한민국) 밖의 위치예요." }, 400);
+  }
+  const lat = roundCoord(rawLat);
+  const lng = roundCoord(rawLng);
 
   const key = process.env.KAKAO_REST_API_KEY;
   if (!key) {
-    return Response.json(
-      { error: "KAKAO_REST_API_KEY 미설정" },
-      { status: 500 },
-    );
+    return json({ error: "KAKAO_REST_API_KEY 미설정" }, 500);
   }
 
   const typeParam = params.get("type");
@@ -157,7 +205,7 @@ export async function GET(request: NextRequest) {
 
   // 요청한 종류가 전부 실패하면 오류로 응답한다.
   if (failed.length === types.length) {
-    return Response.json({ error: errors[0] }, { status: 502 });
+    return json({ error: errors[0] }, 502);
   }
   errors.forEach((message) => console.error("장소 조회 일부 실패:", message));
 
@@ -165,16 +213,23 @@ export async function GET(request: NextRequest) {
     (a, b) => a.distance - b.distance,
   );
   const scored = await attachParkingScores(places);
-  return Response.json({
-    places,
-    scored,
-    // 일부 종류만 실패한 경우 어떤 종류인지 알려준다 (화면에서 안내)
-    failed,
-    // 식당은 카카오 검색 한도 때문에 반경 안 전부를 받지 못할 수 있다. 실제 개수를 함께 알려준다.
-    restaurants: {
-      total: restaurants.total,
-      shown: restaurants.places.length,
-      truncated: restaurants.total > restaurants.places.length,
+
+  // 일부만 불러온 응답은 캐시하지 않는다 (복구된 뒤에도 잘못된 결과가 남지 않게)
+  const degraded = failed.length > 0 || !scored;
+  return json(
+    {
+      places,
+      scored,
+      // 일부 종류만 실패한 경우 어떤 종류인지 알려준다 (화면에서 안내)
+      failed,
+      // 식당은 카카오 검색 한도 때문에 반경 안 전부를 받지 못할 수 있다. 실제 개수를 함께 알려준다.
+      restaurants: {
+        total: restaurants.total,
+        shown: restaurants.places.length,
+        truncated: restaurants.total > restaurants.places.length,
+      },
     },
-  });
+    200,
+    degraded ? NO_CACHE : CACHE_OK,
+  );
 }

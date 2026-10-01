@@ -10,11 +10,11 @@ const KAKAO_CATEGORY_URL =
 const RESTAURANT_CODE = "FD6";
 const PAGE_SIZE = 15;
 const PAGES_PER_QUERY = 3;
-const MAX_CALLS = 24; // 한 번의 조회에서 쓰는 카카오 호출 수 상한
+const MAX_CALLS = 20; // 한 번의 조회에서 쓰는 카카오 호출 수 상한
 const CONCURRENCY = 6;
 const MIN_CELL_METERS = 200;
 const MAX_RESULTS = 400;
-const CACHE_TTL_MS = 60_000;
+const CACHE_TTL_MS = 5 * 60_000; // 식당 목록은 자주 바뀌지 않으므로 5분
 const CACHE_MAX_ENTRIES = 100;
 
 type KakaoDocument = {
@@ -205,7 +205,7 @@ async function load(
   return finish(total);
 }
 
-// 같은 장소를 짧은 시간에 다시 조회할 때 카카오 호출을 아낀다 (서버 인스턴스 메모리, 1분).
+// 같은 장소를 짧은 시간에 다시 조회할 때 카카오 호출을 아낀다 (서버 인스턴스 메모리, 5분).
 const cache = new Map<string, { expires: number; value: RestaurantResult }>();
 
 export async function fetchRestaurants(
