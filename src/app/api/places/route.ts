@@ -129,28 +129,52 @@ export async function GET(request: NextRequest) {
 
   const noRestaurants: RestaurantResult = { places: [], total: 0 };
 
-  try {
-    const [restaurants, toilets] = await Promise.all([
-      types.includes("restaurant")
-        ? fetchRestaurants(lat, lng, radius, key)
-        : noRestaurants,
-      types.includes("toilet") ? fetchToilets(lat, lng, radius) : [],
-    ]);
-    const places = [...restaurants.places, ...toilets].sort(
-      (a, b) => a.distance - b.distance,
-    );
-    const scored = await attachParkingScores(places);
-    return Response.json({
-      places,
-      scored,
-      // 식당은 카카오 검색 한도 때문에 반경 안 전부를 받지 못할 수 있다. 실제 개수를 함께 알려준다.
-      restaurants: {
-        total: restaurants.total,
-        shown: restaurants.places.length,
-        truncated: restaurants.total > restaurants.places.length,
-      },
-    });
-  } catch (e) {
-    return Response.json({ error: (e as Error).message }, { status: 502 });
+  // 식당(카카오)과 화장실(DB) 중 한쪽이 실패해도 나머지는 보여 준다.
+  const [restaurantsResult, toiletsResult] = await Promise.allSettled([
+    types.includes("restaurant")
+      ? fetchRestaurants(lat, lng, radius, key)
+      : noRestaurants,
+    types.includes("toilet") ? fetchToilets(lat, lng, radius) : [],
+  ]);
+
+  const failed: PlaceType[] = [];
+  const errors: string[] = [];
+  let restaurants = noRestaurants;
+  let toilets: Place[] = [];
+
+  if (restaurantsResult.status === "fulfilled") {
+    restaurants = restaurantsResult.value;
+  } else {
+    failed.push("restaurant");
+    errors.push((restaurantsResult.reason as Error).message);
   }
+  if (toiletsResult.status === "fulfilled") {
+    toilets = toiletsResult.value;
+  } else {
+    failed.push("toilet");
+    errors.push((toiletsResult.reason as Error).message);
+  }
+
+  // 요청한 종류가 전부 실패하면 오류로 응답한다.
+  if (failed.length === types.length) {
+    return Response.json({ error: errors[0] }, { status: 502 });
+  }
+  errors.forEach((message) => console.error("장소 조회 일부 실패:", message));
+
+  const places = [...restaurants.places, ...toilets].sort(
+    (a, b) => a.distance - b.distance,
+  );
+  const scored = await attachParkingScores(places);
+  return Response.json({
+    places,
+    scored,
+    // 일부 종류만 실패한 경우 어떤 종류인지 알려준다 (화면에서 안내)
+    failed,
+    // 식당은 카카오 검색 한도 때문에 반경 안 전부를 받지 못할 수 있다. 실제 개수를 함께 알려준다.
+    restaurants: {
+      total: restaurants.total,
+      shown: restaurants.places.length,
+      truncated: restaurants.total > restaurants.places.length,
+    },
+  });
 }
