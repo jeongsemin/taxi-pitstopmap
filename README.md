@@ -167,6 +167,7 @@ python data/scripts/load_parking_lots.py       # 카카오 주차장 (강남구)
 ## 📂 문서
 
 - [설계서](Docs/Design.md)
+- [배포 가이드 (Vercel)](Docs/Deploy.md)
 
 ## 🌿 브랜치 및 커밋 규칙
 
