@@ -19,7 +19,7 @@ import {
 } from "@/components/ui";
 import { distanceMeters } from "@/lib/geo";
 import { parkingLevel } from "@/lib/parking";
-import type { Place } from "@/types/place";
+import type { Place, PlaceType } from "@/types/place";
 
 const KakaoMap = dynamic(() => import("@/components/KakaoMap"), { ssr: false });
 
@@ -33,6 +33,25 @@ type LatLng = { lat: number; lng: number };
 const SEARCH_HERE_MIN_METERS = 150;
 // 내 위치와 검색 위치가 이 거리보다 멀면 "다른 곳을 검색 중"으로 본다
 const ELSEWHERE_MIN_METERS = 100;
+
+// 위치 확인이 이 시간 안에 끝나지 않으면(권한 창이 열려 있는 등) 기본 위치로 먼저 보여 준다
+const LOCATION_WAIT_MS = 8000;
+
+const TYPE_LABEL: Record<PlaceType, string> = {
+  restaurant: "식당",
+  toilet: "화장실",
+};
+
+function partialFailureMessage(failed: PlaceType[], scoreFailed: boolean) {
+  const parts: string[] = [];
+  if (failed.length > 0) {
+    parts.push(
+      `${failed.map((t) => TYPE_LABEL[t]).join("·")} 정보를 불러오지 못했어요. 나머지만 보여 드려요.`,
+    );
+  }
+  if (scoreFailed) parts.push("주정차 점수를 불러오지 못했어요.");
+  return parts.join(" ");
+}
 
 type RestaurantMeta = { total: number; shown: number; truncated: boolean };
 
@@ -62,6 +81,11 @@ export default function Home() {
   const [restaurantMeta, setRestaurantMeta] = useState<RestaurantMeta | null>(
     null,
   );
+  // 일부 종류(식당/화장실)나 점수만 불러오지 못한 경우
+  const [failedTypes, setFailedTypes] = useState<PlaceType[]>([]);
+  const [scoreFailed, setScoreFailed] = useState(false);
+  // 위치 확인이 끝나기 전에는 장소를 조회하지 않는다 (강남역 결과가 먼저 보였다 바뀌는 것을 막는다)
+  const [locationReady, setLocationReady] = useState(false);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -79,6 +103,7 @@ export default function Home() {
     if (!navigator.geolocation) {
       setLocMessage("위치 미지원 – 강남역 기준");
       moveSearchTo(originRef.current);
+      setLocationReady(true);
       return;
     }
     setLocMessage("현재 위치 확인 중…");
@@ -89,10 +114,12 @@ export default function Home() {
         setOrigin(here);
         moveSearchTo(here);
         setLocMessage("현재 위치 기준");
+        setLocationReady(true);
       },
       () => {
         setLocMessage("위치 권한 없음 – 강남역 기준");
         moveSearchTo(originRef.current);
+        setLocationReady(true);
       },
       { enableHighAccuracy: true, timeout: 10000 },
     );
@@ -105,6 +132,15 @@ export default function Home() {
   }, [locate]);
 
   useEffect(() => {
+    const timer = window.setTimeout(
+      () => setLocationReady(true),
+      LOCATION_WAIT_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!locationReady) return;
     const controller = new AbortController();
     fetch(
       `/api/places?lat=${searchCenter.lat}&lng=${searchCenter.lng}&radius=${radius}`,
@@ -117,6 +153,8 @@ export default function Home() {
         if (!res.ok) throw new Error(data.error ?? "검색 실패");
         setAllPlaces(data.places);
         setRestaurantMeta(data.restaurants ?? null);
+        setFailedTypes(data.failed ?? []);
+        setScoreFailed(data.scored === false);
         setError(null);
       })
       .catch((e: Error) => {
@@ -126,7 +164,7 @@ export default function Home() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [searchCenter, radius, refreshKey]);
+  }, [locationReady, searchCenter, radius, refreshKey]);
 
   // 종류 필터와 주차 가능 필터는 함께 적용된다(AND).
   // 각 버튼의 개수는 "그 버튼을 눌렀을 때 보이게 될 장소 수"라서, 다른 쪽 필터 조건을 반영한다.
@@ -167,7 +205,19 @@ export default function Home() {
 
   const changeRadius = (r: number) => {
     setLoading(true);
+    setFocusId(null);
     setRadius(r);
+  };
+
+  // 필터를 바꾸면 선택한 장소 카드는 닫는다 (필터를 되돌렸을 때 다시 나타나지 않게)
+  const changeFilter = (f: Filter) => {
+    setFocusId(null);
+    setFilter(f);
+  };
+
+  const changeParkableOnly = (v: boolean) => {
+    setFocusId(null);
+    setParkableOnly(v);
   };
 
   const retry = useCallback(() => {
@@ -175,6 +225,10 @@ export default function Home() {
     setLoading(true);
     setRefreshKey((k) => k + 1);
   }, []);
+
+  // 일부만 불러온 경우의 안내 (전체 실패는 error 로 따로 보여 준다)
+  const partialNotice =
+    !loading && !error ? partialFailureMessage(failedTypes, scoreFailed) : "";
 
   // 식당을 일부만 받은 경우의 안내 (화장실만 보고 있을 때는 필요 없다)
   const showTruncation =
@@ -231,9 +285,9 @@ export default function Home() {
     <FilterBar
       counts={counts}
       filter={filter}
-      onFilter={setFilter}
+      onFilter={changeFilter}
       parkableOnly={parkableOnly}
-      onParkableOnly={setParkableOnly}
+      onParkableOnly={changeParkableOnly}
     />
   );
 
@@ -276,6 +330,15 @@ export default function Home() {
               <ErrorNotice
                 message={error}
                 hasPlaces={allPlaces.length > 0}
+                onRetry={retry}
+              />
+            </div>
+          )}
+          {partialNotice && (
+            <div className="pointer-events-auto mx-4">
+              <ErrorNotice
+                message={partialNotice}
+                hasPlaces={false}
                 onRetry={retry}
               />
             </div>
@@ -378,6 +441,13 @@ export default function Home() {
                 <ErrorNotice
                   message={error}
                   hasPlaces={allPlaces.length > 0}
+                  onRetry={retry}
+                />
+              )}
+              {partialNotice && (
+                <ErrorNotice
+                  message={partialNotice}
+                  hasPlaces={false}
                   onRetry={retry}
                 />
               )}
