@@ -7,12 +7,17 @@ import { useTheme, type ResolvedTheme } from "@/lib/theme";
 import type { Place, PlaceType } from "@/types/place";
 
 type Props = {
+  // 검색 기준 위치: 반경 원의 중심이고, 이 값이 바뀌면 지도도 그곳으로 옮긴다
   center: { lat: number; lng: number };
+  // 내 위치(파란 점). 없으면 center 에 표시한다
+  myLocation?: { lat: number; lng: number };
   places: Place[];
   selectedId: string | null;
   onSelect?: (id: string) => void;
   // 사용자가 지도를 직접 끌기 시작할 때 (코드로 움직인 경우는 호출되지 않는다)
   onMapMove?: () => void;
+  // 사용자가 지도를 끌어서 옮긴 뒤의 중심 (끌기가 끝났을 때)
+  onMapMoved?: (center: { lat: number; lng: number }) => void;
   // 탐색 화면: 반경 원과 내 위치 표시 / 상세 화면: 장소 하나만 보여준다
   variant?: "explore" | "detail";
   radius?: number;
@@ -128,6 +133,8 @@ export default function KakaoMap({
   selectedId,
   onSelect,
   onMapMove,
+  onMapMoved,
+  myLocation,
   variant = "explore",
   radius = 500,
   level = 4,
@@ -136,12 +143,14 @@ export default function KakaoMap({
   const mapRef = useRef<kakao.maps.Map | null>(null);
   const overlaysRef = useRef<(kakao.maps.Marker | kakao.maps.Circle)[]>([]);
   const onMapMoveRef = useRef(onMapMove);
+  const onMapMovedRef = useRef(onMapMoved);
   const { resolved: theme } = useTheme();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     onMapMoveRef.current = onMapMove;
-  }, [onMapMove]);
+    onMapMovedRef.current = onMapMoved;
+  }, [onMapMove, onMapMoved]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -155,6 +164,11 @@ export default function KakaoMap({
         kakao.maps.event.addListener(mapRef.current, "dragstart", () =>
           onMapMoveRef.current?.(),
         );
+        const map = mapRef.current;
+        kakao.maps.event.addListener(map, "dragend", () => {
+          const c = map.getCenter();
+          onMapMovedRef.current?.({ lat: c.getLat(), lng: c.getLng() });
+        });
         setReady(true);
       })
       .catch((e: Error) => setError(e.message));
@@ -193,7 +207,9 @@ export default function KakaoMap({
       overlaysRef.current.push(circle);
 
       const me = new kakao.maps.Marker({
-        position: centerLatLng,
+        position: myLocation
+          ? new kakao.maps.LatLng(myLocation.lat, myLocation.lng)
+          : centerLatLng,
         image: myLocationImage(),
         title: "내 위치",
         zIndex: 10,
@@ -221,7 +237,17 @@ export default function KakaoMap({
       }
       overlaysRef.current.push(marker);
     });
-  }, [ready, center, places, radius, selectedId, onSelect, variant, theme]);
+  }, [
+    ready,
+    center,
+    myLocation,
+    places,
+    radius,
+    selectedId,
+    onSelect,
+    variant,
+    theme,
+  ]);
 
   // 장소를 선택해도 지도 시점은 바꾸지 않는다. 선택은 마커 크기와 하단 카드로만 표시한다.
 
