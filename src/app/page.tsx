@@ -55,8 +55,24 @@ function partialFailureMessage(failed: PlaceType[], scoreFailed: boolean) {
 
 type RestaurantMeta = { total: number; shown: number; truncated: boolean };
 
+// 서버가 오류 응답을 줄 때 상태 코드를 함께 들고 있는 오류
+class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
+// 같은 지역 조회가 CDN 캐시를 함께 쓰도록 좌표를 약 11m 단위로 맞춘다 (서버도 같은 단위로 맞춘다)
+const roundCoord = (v: number) => (Math.round(v * 1e4) / 1e4).toFixed(4);
+
 function friendlyError(e: unknown): string {
   if (e instanceof TypeError) return "네트워크 연결을 확인해 주세요.";
+  if (e instanceof ApiError && e.status === 429) {
+    return "요청이 많아 잠시 후 다시 시도해 주세요.";
+  }
   const msg = e instanceof Error ? e.message : String(e);
   if (msg.includes("429")) return "요청이 많아 잠시 후 다시 시도해 주세요.";
   return `장소를 불러오지 못했어요. (${msg})`;
@@ -143,14 +159,15 @@ export default function Home() {
     if (!locationReady) return;
     const controller = new AbortController();
     fetch(
-      `/api/places?lat=${searchCenter.lat}&lng=${searchCenter.lng}&radius=${radius}`,
+      // 제보 직후 등 다시 불러올 때(refreshKey > 0)는 r 값을 붙여 CDN 캐시를 건너뛴다
+      `/api/places?lat=${roundCoord(searchCenter.lat)}&lng=${roundCoord(searchCenter.lng)}&radius=${radius}${refreshKey > 0 ? `&r=${refreshKey}` : ""}`,
       {
         signal: controller.signal,
       },
     )
       .then(async (res) => {
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "검색 실패");
+        if (!res.ok) throw new ApiError(data.error ?? "검색 실패", res.status);
         setAllPlaces(data.places);
         setRestaurantMeta(data.restaurants ?? null);
         setFailedTypes(data.failed ?? []);
