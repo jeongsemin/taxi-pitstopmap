@@ -184,6 +184,33 @@ export default function Home() {
 
   const closeCard = useCallback(() => setFocusId(null), []);
 
+  // 상세 화면은 브라우저 기록과 연결한다. 열 때 기록을 한 칸 쌓아 두면 모바일 뒤로가기
+  // 버튼이 사이트를 벗어나지 않고 상세만 닫는다. (Next.js 는 pushState 를 라우터와 연동한다)
+  const openDetail = useCallback((id: string) => {
+    window.history.pushState({ ...window.history.state, detailId: id }, "");
+    setDetailId(id);
+  }, []);
+
+  // 화면의 뒤로가기/닫기 버튼도 기록을 되돌려서 닫는다 (popstate 에서 상태를 정리한다)
+  const closeDetail = useCallback(() => {
+    if (window.history.state?.detailId) window.history.back();
+    else setDetailId(null);
+  }, []);
+
+  useEffect(() => {
+    // 새로고침 뒤에 남은 상세 기록 표시는 지운다 (화면은 상세가 닫힌 상태로 시작하므로)
+    if (window.history.state?.detailId) {
+      const rest = Object.fromEntries(
+        Object.entries(window.history.state).filter(([k]) => k !== "detailId"),
+      );
+      window.history.replaceState(rest, "");
+    }
+    const onPopState = () =>
+      setDetailId(window.history.state?.detailId ?? null);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
   const handleMapMoved = useCallback((c: LatLng) => setPendingCenter(c), []);
 
   const showSearchHere =
@@ -288,7 +315,7 @@ export default function Home() {
           {card ? (
             <div className="pointer-events-auto relative w-full rounded-[22px] bg-surface shadow-[0_12px_28px_rgba(0,0,0,0.4)]">
               <button
-                onClick={() => setDetailId(card.id)}
+                onClick={() => openDetail(card.id)}
                 className="flex w-full flex-col gap-3.5 p-4 text-left"
               >
                 <div className="flex items-center gap-2 pr-11">
@@ -373,7 +400,7 @@ export default function Home() {
                 <PlaceCard
                   key={p.id}
                   place={p}
-                  onClick={() => setDetailId(p.id)}
+                  onClick={() => openDetail(p.id)}
                 />
               ))}
             </div>
@@ -388,7 +415,7 @@ export default function Home() {
         <PlaceDetail
           key={detail.id}
           place={detail}
-          onClose={() => setDetailId(null)}
+          onClose={closeDetail}
           onReported={() => setRefreshKey((k) => k + 1)}
           distanceFrom={searchingElsewhere ? "search" : "me"}
         />
