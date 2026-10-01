@@ -11,8 +11,10 @@ import RadiusMenu, { radiusLabel } from "@/components/RadiusMenu";
 import SettingsScreen from "@/components/SettingsScreen";
 import {
   CategoryIcon,
+  ErrorNotice,
   NoDataNotice,
   StatusPill,
+  TruncationNotice,
   isOpen24h,
 } from "@/components/ui";
 import { parkingLevel } from "@/lib/parking";
@@ -22,6 +24,16 @@ const KakaoMap = dynamic(() => import("@/components/KakaoMap"), { ssr: false });
 
 // 위치 권한 거부 시 기본 위치: 서울 강남역
 const DEFAULT_CENTER = { lat: 37.4979, lng: 127.0276 };
+
+// API 응답의 식당 개수 정보 (카카오 검색 한도로 전부 받지 못할 수 있다)
+type RestaurantMeta = { total: number; shown: number; truncated: boolean };
+
+function friendlyError(e: unknown): string {
+  if (e instanceof TypeError) return "네트워크 연결을 확인해 주세요.";
+  const msg = e instanceof Error ? e.message : String(e);
+  if (msg.includes("429")) return "요청이 많아 잠시 후 다시 시도해 주세요.";
+  return `장소를 불러오지 못했어요. (${msg})`;
+}
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("map");
@@ -33,6 +45,9 @@ export default function Home() {
   const [parkableOnly, setParkableOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [restaurantMeta, setRestaurantMeta] = useState<RestaurantMeta | null>(
+    null,
+  );
   const [focusId, setFocusId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -69,10 +84,11 @@ export default function Home() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "검색 실패");
         setAllPlaces(data.places);
+        setRestaurantMeta(data.restaurants ?? null);
         setError(null);
       })
       .catch((e: Error) => {
-        if (e.name !== "AbortError") setError(e.message);
+        if (e.name !== "AbortError") setError(friendlyError(e));
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -122,6 +138,16 @@ export default function Home() {
     setRadius(r);
   };
 
+  const retry = useCallback(() => {
+    setError(null);
+    setLoading(true);
+    setRefreshKey((k) => k + 1);
+  }, []);
+
+  // 식당을 일부만 받은 경우의 안내 (화장실만 보고 있을 때는 필요 없다)
+  const showTruncation =
+    !loading && filter !== "toilet" && !!restaurantMeta?.truncated;
+
   const handleFocus = useCallback((id: string) => setFocusId(id), []);
 
   const closeCard = useCallback(() => setFocusId(null), []);
@@ -168,9 +194,27 @@ export default function Home() {
             <RadiusMenu radius={radius} onChange={changeRadius} />
           </div>
           <div className="pointer-events-auto">{filterBar}</div>
+          {!loading && error && (
+            <div className="pointer-events-auto mx-4">
+              <ErrorNotice
+                message={error}
+                hasPlaces={allPlaces.length > 0}
+                onRetry={retry}
+              />
+            </div>
+          )}
           {!loading && (
             <div className="pointer-events-auto mx-4">
               <NoDataNotice places={allPlaces} />
+            </div>
+          )}
+          {showTruncation && restaurantMeta && (
+            <div className="pointer-events-auto mx-4">
+              <TruncationNotice
+                total={restaurantMeta.total}
+                shown={restaurantMeta.shown}
+                radiusText={radiusLabel(radius)}
+              />
             </div>
           )}
         </div>
@@ -221,6 +265,7 @@ export default function Home() {
             </div>
           ) : (
             !loading &&
+            !error &&
             places.length === 0 && (
               <p className="pointer-events-auto w-full rounded-[22px] bg-surface p-4 text-center text-sm font-semibold text-muted shadow-[0_12px_28px_rgba(0,0,0,0.4)]">
                 조건에 맞는 장소가 없어요. 반경을 넓히거나 필터를 바꿔 보세요.
@@ -243,10 +288,21 @@ export default function Home() {
             </div>
             <div className="shrink-0 py-1">{filterBar}</div>
             <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto px-4 pt-2.5 pb-4">
-              {error && (
-                <p className="text-sm font-semibold text-bad">{error}</p>
+              {!loading && error && (
+                <ErrorNotice
+                  message={error}
+                  hasPlaces={allPlaces.length > 0}
+                  onRetry={retry}
+                />
               )}
               {!loading && <NoDataNotice places={allPlaces} />}
+              {showTruncation && restaurantMeta && (
+                <TruncationNotice
+                  total={restaurantMeta.total}
+                  shown={restaurantMeta.shown}
+                  radiusText={radiusLabel(radius)}
+                />
+              )}
               {!loading && !error && places.length === 0 && (
                 <p className="py-10 text-center text-sm font-semibold text-muted">
                   조건에 맞는 장소가 없어요.

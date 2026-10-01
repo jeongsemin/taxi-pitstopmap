@@ -12,6 +12,16 @@ export type ParkingScore = {
   reports: { parkable: number; enforced: number; full: number };
 };
 
+// 점수를 아직 붙이지 못한 장소의 기본값 (점수 조회에 실패하면 그대로 남는다)
+export const EMPTY_PARKING_SCORE: ParkingScore = {
+  score: null,
+  noData: false,
+  nearestLotDistance: null,
+  nearestLotName: null,
+  reasons: [],
+  reports: { parkable: 0, enforced: 0, full: 0 },
+};
+
 // 🟢 60 이상 / 🟡 30~59 / 🔴 30 미만 (규칙은 supabase/migrations/0004 참고)
 export function parkingLevel(score: number | null): ParkingLevel {
   if (score === null) return "unknown";
