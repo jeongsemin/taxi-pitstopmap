@@ -18,6 +18,10 @@ const KOREA_BOUNDS = { minLat: 33, maxLat: 39, minLng: 124, maxLng: 132 };
 const RATE_LIMIT = 40;
 const RATE_WINDOW_MS = 60_000;
 
+// 서버 인스턴스 하나가 1분에 처리하는 전체 조회 수. 한 조회가 카카오를 최대 20회 부르므로
+// 여러 IP 로 흩어진 호출이 카카오 일일 한도를 한꺼번에 쓰지 못하게 하는 안전망이다.
+const GLOBAL_LIMIT = 300;
+
 // 같은 지역을 보는 사용자들이 CDN 캐시를 함께 쓰도록 좌표를 약 11m 단위로 맞춘다.
 const roundCoord = (v: number) => Math.round(v * 1e4) / 1e4;
 
@@ -124,13 +128,19 @@ export async function GET(request: NextRequest) {
     RATE_LIMIT,
     RATE_WINDOW_MS,
   );
-  if (!limited.ok) {
+  // IP 한도에 걸린 요청은 전체 한도를 쓰지 않는다
+  const globalLimited = limited.ok
+    ? checkRateLimit("*", GLOBAL_LIMIT, RATE_WINDOW_MS)
+    : limited;
+  if (!limited.ok || !globalLimited.ok) {
     return Response.json(
       { error: "요청이 많아 잠시 후 다시 시도해 주세요." },
       {
         status: 429,
         headers: {
-          "Retry-After": String(limited.retryAfterSec),
+          "Retry-After": String(
+            Math.max(limited.retryAfterSec, globalLimited.retryAfterSec),
+          ),
           "Cache-Control": NO_CACHE,
         },
       },
