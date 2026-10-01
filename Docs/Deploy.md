@@ -18,6 +18,8 @@
    - Root Directory: 기본값 (저장소 루트)
    - Production Branch: **main**
 
+> ⚠️ **"여러 서비스(Services)"로 가져오지 마세요.** 저장소에 Python 데이터 스크립트 폴더(`data/`)가 있어서 Vercel이 "Multiple applications detected… Services" 화면을 띄우고 `vercel.json`을 요구할 수 있습니다. 목록에서 **`app` (Next.js, 경로 `/`)** 항목의 **Import single project** 를 눌러 Next.js 앱 하나만 가져오세요. `data/` 는 내 PC에서만 쓰는 스크립트라 배포 대상이 아닙니다.
+
 ## 2. 환경변수 4개 등록
 
 **Deploy 를 누르기 전에** Environment Variables 에 아래 4개를 넣습니다. 값은 로컬 `.env.local` 에서 복사합니다.
@@ -36,6 +38,8 @@
 ## 3. 배포하고 주소 확인
 
 **Deploy** 를 누르면 몇 분 안에 `https://<프로젝트이름>.vercel.app` 형태의 주소가 생깁니다. 이 주소가 **운영 주소**입니다.
+
+> Vercel 개요에 **"No Production Deployment — push to the main branch"** 라고 나오면 첫 배포가 아직 시작되지 않은 것입니다. 가져오기 마지막 단계(통합 검토 후 Deploy)를 끝내거나, `main` 브랜치에 새 커밋을 병합하면 자동으로 배포가 시작됩니다. 이후에는 `main`에 병합될 때마다 자동으로 운영 배포가 갱신됩니다.
 
 > Vercel은 배포(커밋)마다 임시 미리보기 주소도 만듭니다. 카카오에는 **바뀌지 않는 운영 주소 하나**만 등록해서 쓰세요.
 
