@@ -51,6 +51,28 @@ const RADIUS_STYLE: Record<
   },
 };
 
+// 묶음(클러스터) 표시. 마커의 상태 색(초록/주황/빨강)과 헷갈리지 않게 무채색으로 그린다.
+const CLUSTER_MIN_LEVEL = 4; // 이 지도 레벨 이상(멀리서 볼 때)에서만 묶는다. 더 확대하면 개별 마커로 보인다.
+const CLUSTER_SIZES = [34, 42, 50]; // 묶인 개수 구간(10 미만 / 50 미만 / 그 이상)별 크기
+
+function clusterStyles(theme: ResolvedTheme): object[] {
+  const dark = theme === "dark";
+  return CLUSTER_SIZES.map((px) => ({
+    width: `${px}px`,
+    height: `${px}px`,
+    lineHeight: `${px - 4}px`,
+    boxSizing: "border-box",
+    borderRadius: "50%",
+    border: `2px solid ${dark ? "#9eacbc" : "#191919"}`,
+    background: dark ? "#202c3b" : "#ffffff",
+    color: dark ? "#f7fafc" : "#191919",
+    textAlign: "center",
+    fontWeight: "800",
+    fontSize: px > 40 ? "14px" : "13px",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.35)",
+  }));
+}
+
 const MARKER_ICON: Record<PlaceType, IconNode> = {
   restaurant: Utensils,
   toilet: Toilet,
@@ -80,20 +102,27 @@ function markerImage(
   const cached = imageCache.get(cacheKey);
   if (cached) return cached;
 
-  // 마커는 지도 위에 많이 겹치므로 작게 그린다 (기본 23px, 선택 28px)
+  // 보이는 크기는 작게(기본 23px, 선택 28px) 유지해 겹침을 줄이고,
+  // 투명 여백을 둬서 손가락으로 누를 수 있는 영역은 넓힌다 (기본 40px, 선택 44px).
   const size = selected ? 28 : 23;
+  const hit = selected ? 44 : 40;
+  const c = hit / 2;
   const icon = Math.round(size * 0.5);
   const border = 2;
-  const offset = (size - icon) / 2;
+  const offset = c - icon / 2;
   const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
-    `<circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - border / 2}" fill="${LEVEL_STYLE[level].color}" stroke="${MARKER_BORDER[theme]}" stroke-width="${border}"/>` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${hit}" height="${hit}" viewBox="0 0 ${hit} ${hit}">` +
+    `<circle cx="${c}" cy="${c}" r="${size / 2 - border / 2}" fill="${LEVEL_STYLE[level].color}" stroke="${MARKER_BORDER[theme]}" stroke-width="${border}"/>` +
     `<g transform="translate(${offset} ${offset}) scale(${icon / 24})" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">${iconToSvg(MARKER_ICON[type])}</g>` +
     `</svg>`;
   const image = new kakao.maps.MarkerImage(
     `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
-    new kakao.maps.Size(size, size),
-    { offset: new kakao.maps.Point(size / 2, size / 2) },
+    new kakao.maps.Size(hit, hit),
+    {
+      offset: new kakao.maps.Point(c, c),
+      shape: "circle",
+      coords: `${c},${c},${c}`,
+    },
   );
   imageCache.set(cacheKey, image);
   return image;
@@ -111,7 +140,7 @@ function myLocationImage() {
   );
 }
 
-const SDK_URL = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&autoload=false`;
+const SDK_URL = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&libraries=clusterer&autoload=false`;
 
 function loadSdk(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -142,6 +171,7 @@ export default function KakaoMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<kakao.maps.Map | null>(null);
   const overlaysRef = useRef<(kakao.maps.Marker | kakao.maps.Circle)[]>([]);
+  const clustererRef = useRef<kakao.maps.MarkerClusterer | null>(null);
   const onMapMoveRef = useRef(onMapMove);
   const onMapMovedRef = useRef(onMapMoved);
   const { resolved: theme } = useTheme();
@@ -169,6 +199,17 @@ export default function KakaoMap({
           const c = map.getCenter();
           onMapMovedRef.current?.({ lat: c.getLat(), lng: c.getLng() });
         });
+        if (variant === "explore") {
+          clustererRef.current = new kakao.maps.MarkerClusterer({
+            map,
+            averageCenter: true,
+            minLevel: CLUSTER_MIN_LEVEL,
+            minClusterSize: 3,
+            gridSize: 50,
+            styles: clusterStyles(theme),
+            calculator: [10, 50],
+          });
+        }
         setReady(true);
       })
       .catch((e: Error) => setError(e.message));
@@ -190,6 +231,7 @@ export default function KakaoMap({
 
     overlaysRef.current.forEach((o) => o.setMap(null));
     overlaysRef.current = [];
+    clustererRef.current?.clear();
 
     const centerLatLng = new kakao.maps.LatLng(center.lat, center.lng);
 
@@ -218,25 +260,39 @@ export default function KakaoMap({
       overlaysRef.current.push(me);
     }
 
+    // 한눈에 봐야 하는 마커는 묶지 않고 항상 개별로 보인다:
+    //  🟢 주차 가능, 화장실(급할 때 찾는 곳), 선택한 장소. 나머지 식당만 멀리서 볼 때 묶는다.
+    const clustered: kakao.maps.Marker[] = [];
+
     places.forEach((p) => {
       const selected = variant === "detail" || p.id === selectedId;
+      const level = parkingLevel(p.parking.score);
+      const clusterable =
+        variant === "explore" &&
+        p.type === "restaurant" &&
+        level !== "good" &&
+        !selected;
+
       const marker = new kakao.maps.Marker({
         position: new kakao.maps.LatLng(p.lat, p.lng),
         title: p.name,
-        image: markerImage(
-          p.type,
-          parkingLevel(p.parking.score),
-          selected,
-          theme,
-        ),
-        zIndex: selected ? 5 : 1,
-        map,
+        image: markerImage(p.type, level, selected, theme),
+        zIndex: selected ? 5 : level === "good" ? 3 : 1,
+        // 묶을 마커는 클러스터러가 지도에 올린다
+        ...(clusterable ? {} : { map }),
       });
       if (onSelect) {
         kakao.maps.event.addListener(marker, "click", () => onSelect(p.id));
       }
-      overlaysRef.current.push(marker);
+      if (clusterable) clustered.push(marker);
+      else overlaysRef.current.push(marker);
     });
+
+    const clusterer = clustererRef.current;
+    if (clusterer) {
+      clusterer.setStyles(clusterStyles(theme));
+      clusterer.addMarkers(clustered);
+    }
   }, [
     ready,
     center,
