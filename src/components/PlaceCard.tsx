@@ -13,7 +13,11 @@ function subtitle(place: Place) {
 }
 
 export function reasonText(place: Place) {
-  if (place.parking.score === null) return "점수를 불러오지 못했어요";
+  if (place.parking.score === null) {
+    return place.parking.noData
+      ? "주차장 데이터가 없는 지역"
+      : "점수를 불러오지 못했어요";
+  }
   return place.parking.reasons[0] ?? "근처 주차장 정보 없음";
 }
 

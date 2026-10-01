@@ -137,10 +137,19 @@ export default function PlaceDetail({ place, onClose, onReported }: Props) {
             </div>
             <div className="min-w-0">
               <p className="text-base font-extrabold text-fg">
-                {parking.score === null
-                  ? "주정차 점수를 불러오지 못했어요"
-                  : "주정차 판단 근거"}
+                {parking.score !== null
+                  ? "주정차 판단 근거"
+                  : parking.noData
+                    ? "이 지역은 주정차 정보가 아직 없어요"
+                    : "주정차 점수를 불러오지 못했어요"}
               </p>
+              {parking.score === null && parking.noData && (
+                <p className="mt-1 text-sm text-fg/90">
+                  주차장 데이터가 있는 곳은 아직 서울 강남구뿐이에요. 이곳은
+                  &quot;세울 수 없다&quot;는 뜻이 아니라 알 수 없다는 뜻이에요.
+                  직접 세워 보셨다면 아래에서 제보해 주세요.
+                </p>
+              )}
               {parking.score !== null && (
                 <ul className="mt-1 list-disc pl-4 text-sm text-fg/90">
                   {parking.reasons.length > 0 ? (

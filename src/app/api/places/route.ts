@@ -37,10 +37,12 @@ type ScoreRow = {
   reports_parkable: number;
   reports_enforced: number;
   reports_full: number;
+  no_data: boolean;
 };
 
 const EMPTY_SCORE: ParkingScore = {
   score: null,
+  noData: false,
   nearestLotDistance: null,
   nearestLotName: null,
   reasons: [],
@@ -154,6 +156,7 @@ async function attachParkingScores(places: Place[]): Promise<boolean> {
     if (!r) continue;
     p.parking = {
       score: r.score,
+      noData: r.no_data ?? false,
       nearestLotDistance: r.nearest_lot_distance,
       nearestLotName: r.nearest_lot_name,
       reasons: r.reasons ?? [],

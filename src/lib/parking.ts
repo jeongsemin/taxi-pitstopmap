@@ -1,8 +1,11 @@
 export type ParkingLevel = "good" | "unsure" | "hard" | "unknown";
 
-// score 가 null 이면 점수를 계산하지 못한 것 (점수 조회 실패)
+// score 가 null 이면 점수가 없는 것이다.
+//  - noData: 주차장 데이터가 없는 지역이라 알 수 없음 ("세울 수 없음"이 아니다)
+//  - noData 가 false 면 점수 조회에 실패한 경우
 export type ParkingScore = {
   score: number | null;
+  noData: boolean;
   nearestLotDistance: number | null;
   nearestLotName: string | null;
   reasons: string[];

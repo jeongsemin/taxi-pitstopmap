@@ -9,7 +9,12 @@ import PlaceCard, { reasonText } from "@/components/PlaceCard";
 import PlaceDetail from "@/components/PlaceDetail";
 import RadiusMenu, { radiusLabel } from "@/components/RadiusMenu";
 import SettingsScreen from "@/components/SettingsScreen";
-import { CategoryIcon, StatusPill, isOpen24h } from "@/components/ui";
+import {
+  CategoryIcon,
+  NoDataNotice,
+  StatusPill,
+  isOpen24h,
+} from "@/components/ui";
 import { parkingLevel } from "@/lib/parking";
 import type { Place } from "@/types/place";
 
@@ -163,6 +168,11 @@ export default function Home() {
             <RadiusMenu radius={radius} onChange={changeRadius} />
           </div>
           <div className="pointer-events-auto">{filterBar}</div>
+          {!loading && (
+            <div className="pointer-events-auto mx-4">
+              <NoDataNotice places={allPlaces} />
+            </div>
+          )}
         </div>
 
         <div className="pointer-events-none absolute inset-x-4 bottom-4 z-10 flex flex-col items-end gap-3">
@@ -236,6 +246,7 @@ export default function Home() {
               {error && (
                 <p className="text-sm font-semibold text-bad">{error}</p>
               )}
+              {!loading && <NoDataNotice places={allPlaces} />}
               {!loading && !error && places.length === 0 && (
                 <p className="py-10 text-center text-sm font-semibold text-muted">
                   조건에 맞는 장소가 없어요.

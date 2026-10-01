@@ -1,4 +1,4 @@
-import { Toilet, Utensils, type LucideIcon } from "lucide-react";
+import { Info, Toilet, Utensils, type LucideIcon } from "lucide-react";
 import { LEVEL_STYLE, parkingLevel } from "@/lib/parking";
 import type { Place, PlaceType } from "@/types/place";
 
@@ -50,6 +50,26 @@ export function CategoryIcon({
 
 export function isOpen24h(place: Pick<Place, "is24h" | "openHours">) {
   return place.is24h || place.openHours === "24시간";
+}
+
+// 보이는 장소가 모두 "주차장 데이터 없는 지역"일 때의 안내.
+// 데이터가 없는 것은 "세울 수 없음"과 다르다는 점을 알려 점수 없음(회색)을 오해하지 않게 한다.
+export function NoDataNotice({ places }: { places: Pick<Place, "parking">[] }) {
+  if (places.length === 0 || !places.every((p) => p.parking.noData))
+    return null;
+  return (
+    <div
+      role="note"
+      className="flex items-start gap-2 rounded-xl bg-surface px-3 py-2.5 text-xs font-semibold text-muted shadow-[0_12px_28px_rgba(0,0,0,0.25)]"
+    >
+      <Info size={16} className="mt-px shrink-0 text-accent" aria-hidden />
+      <p>
+        이 지역은 주차장 데이터가 아직 없어 주정차 점수를 알 수 없어요. 현재
+        서울 강남구만 지원해요. 회색 마커는 &quot;세울 수 없음&quot;이 아니라
+        정보 없음이에요.
+      </p>
+    </div>
+  );
 }
 
 export function FilterPill({
