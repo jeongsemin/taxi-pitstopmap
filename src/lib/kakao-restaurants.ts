@@ -96,7 +96,8 @@ function toPlace(d: KakaoDocument, lat: number, lng: number): Place {
     distance: Number.isFinite(given)
       ? given
       : Math.round(distanceMeters(lat, lng, placeLat, placeLng)),
-    url: d.place_url,
+    // 카카오가 http 주소를 내려주므로 https 로 바꿔 암호화되지 않은 연결을 피한다
+    url: d.place_url.replace(/^http:\/\//, "https://"),
     parking: EMPTY_PARKING_SCORE,
   };
 }
