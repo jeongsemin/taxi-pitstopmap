@@ -7,7 +7,8 @@
     python data/scripts/load_public_toilets.py                    # 적재
     python data/scripts/load_public_toilets.py --csv data/raw/x.csv
 
-CSV 받는 곳: https://file.localdata.go.kr/file/public_restroom_info/info (지역별 다운로드)
+CSV 받는 곳: 공공데이터포털 전국공중화장실표준데이터(data.go.kr/data/15012892/standard.do)의 다운로드 버튼
+(주소를 직접 입력하면 403 이 날 수 있으니 페이지의 버튼으로 받는다). 서울: data/raw/공중화장실정보_서울특별시.csv
 필요한 환경변수(.env.local): KAKAO_REST_API_KEY (+ 적재 시 DB 접속 정보)
 """
 
@@ -53,8 +54,25 @@ where o.source = 'osm' and o.type = 'toilet'
 """
 
 
+# 서울 경계 사각형. 주소 오타나 엉뚱한 지오코딩 결과(다른 도시 등)를 거른다.
+SEOUL_BBOX = (126.76, 37.41, 127.19, 37.72)  # 서, 남, 동, 북
+
+ALWAYS_OPEN = ("24시간", "24/7", "상시", "00:00~24:00", "00:00~00:00", "00~24")
+
+
 def clean(value):
     return None if pd.isna(value) else str(value).strip() or None
+
+
+def is_always_open(detail, basic) -> bool:
+    """24시간 열려 있는 화장실인지. 개방시간 표기가 제각각이라 흔한 표기를 모두 본다."""
+    text = detail or basic or ""
+    return any(token in text for token in ALWAYS_OPEN)
+
+
+def in_seoul(lng, lat) -> bool:
+    west, south, east, north = SEOUL_BBOX
+    return west <= lng <= east and south <= lat <= north
 
 
 def load_cache() -> dict:
@@ -88,6 +106,8 @@ def build_rows(df: pd.DataFrame, key: str):
     for i, r in df.iterrows():
         addr = clean(r["소재지도로명주소"]) or clean(r["소재지지번주소"])
         name = clean(r["화장실명"]) or "공중화장실"
+        if clean(r["구분명"]) == "이동화장실":
+            continue
         if not addr:
             failed.append((name, "주소 없음"))
             continue
@@ -103,6 +123,9 @@ def build_rows(df: pd.DataFrame, key: str):
         if not coord:
             failed.append((name, f"좌표 없음: {addr}"))
             continue
+        if not in_seoul(*coord):
+            failed.append((name, f"서울 밖 좌표: {addr}"))
+            continue
 
         detail = clean(r["개방시간상세"]) or clean(r["개방시간"])
         rows.append(
@@ -113,7 +136,7 @@ def build_rows(df: pd.DataFrame, key: str):
                 addr,
                 clean(r["전화번호"]),
                 detail,
-                bool(detail and ("24시간" in detail or "24/7" in detail)),
+                is_always_open(detail, clean(r["개방시간"])),
                 str(r["관리번호"]),
             )
         )

@@ -72,7 +72,7 @@
 
 합계는 0~100점으로 제한, 🟢 60 이상 · 🟡 30~59 · 🔴 30 미만. 규칙은 [`supabase/migrations/0005_score_no_data.sql`](supabase/migrations/0005_score_no_data.sql)의 `score_places()` 한 곳에서 조정합니다.
 
-**데이터가 없는 지역은 "점수 없음"(⚪)**: 장소 반경 500m 안에 주차장 데이터가 하나도 없으면 🔴가 아니라 점수 없음으로 표시하고 안내를 띄웁니다. (현재 주차장 데이터는 서울 전역(카카오 주차장 약 9,300곳)이고, 서울 밖은 "세울 수 없음"이 아니라 "알 수 없음"입니다. 화장실 데이터는 아직 강남구뿐입니다.) 이런 지역에 제보가 있으면 중립 30점에서 제보만큼 가감합니다.
+**데이터가 없는 지역은 "점수 없음"(⚪)**: 장소 반경 500m 안에 주차장 데이터가 하나도 없으면 🔴가 아니라 점수 없음으로 표시하고 안내를 띄웁니다. (현재 주차장 데이터는 서울 전역(카카오 주차장 약 9,300곳)이고, 서울 밖은 "세울 수 없음"이 아니라 "알 수 없음"입니다. 화장실도 서울 전역입니다: 공공데이터 약 5,400곳 + OSM 보강.) 이런 지역에 제보가 있으면 중립 30점에서 제보만큼 가감합니다.
 가중치는 가정값이며 실제 기사 피드백으로 검증되지 않았습니다. 자체 주차장 여부와 공식 주정차 구간 데이터는 아직 반영하지 않았습니다.
 
 ## 🏗 아키텍처
@@ -142,7 +142,7 @@ SUPABASE_DB_HOST=                   # IPv4 환경에서 Session pooler 호스트
 pip install -r data/requirements.txt
 python data/scripts/apply_migrations.py        # 테이블·함수 생성
 python data/scripts/load_osm_toilets.py --area 서울특별시 --level 4   # OSM 화장실 (서울 전체)
-python data/scripts/load_public_toilets.py     # 공공데이터 화장실 (CSV 필요)
+python data/scripts/load_public_toilets.py --csv data/raw/공중화장실정보_서울특별시.csv   # 공공데이터 화장실 (CSV 필요, 카카오 주소 변환)
 python data/scripts/load_parking_lots.py --region seoul   # 카카오 주차장 (서울, 카카오 호출 약 2천 회)
 ```
 
