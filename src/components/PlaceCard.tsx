@@ -24,7 +24,6 @@ export function reasonText(place: Place) {
   if (storeParking.kind === "name_match") return "주차 자리 제공 추정";
   if (storeParking.kind === "building") return "건물·옆 주차장 (추정)";
   if (roadside) return `노상주차장 ${roadside.distance}m`;
-  if (place.parking.camera) return "단속 카메라 근처";
   return "주차 정보 없음";
 }
 

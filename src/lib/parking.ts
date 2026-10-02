@@ -17,8 +17,6 @@ export type ParkingScore = {
   storeParking: { kind: StoreParkingKind; lotName: string | null };
   // 100m 안의 노상주차장(도로에 그어진 주차구획). 없으면 null
   roadside: { distance: number; name: string | null } | null;
-  // 60m 안의 주정차 단속 카메라(고정형 CCTV). 없다고 해서 세워도 된다는 뜻은 아니다. 없으면 null
-  camera: { distance: number; name: string | null } | null;
   reports: { store: number; roadside: number; enforced: number; full: number };
 };
 
@@ -31,7 +29,6 @@ export const EMPTY_PARKING_SCORE: ParkingScore = {
   reasons: [],
   storeParking: { kind: "none", lotName: null },
   roadside: null,
-  camera: null,
   reports: { store: 0, roadside: 0, enforced: 0, full: 0 },
 };
 
