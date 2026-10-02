@@ -3,6 +3,7 @@
 사용법 (프로젝트 루트에서):
     pip install -r data/requirements.txt
     python data/scripts/load_osm_toilets.py            # 강남구 (기본)
+    python data/scripts/load_osm_toilets.py --area 서울특별시 --level 4   # 서울 전체
     python data/scripts/load_osm_toilets.py --dry-run  # DB 적재 없이 수집만
 
 DB 접속 정보는 .env.local 의 NEXT_PUBLIC_SUPABASE_URL, SUPABASE_DB_PASSWORD,
@@ -28,7 +29,7 @@ OVERPASS_URLS = [
 
 QUERY = """
 [out:json][timeout:90];
-area["name"="{area}"]["boundary"="administrative"]["admin_level"="6"]->.a;
+area["name"="{area}"]["boundary"="administrative"]["admin_level"="{level}"]->.a;
 (
   node["amenity"="toilets"](area.a);
   way["amenity"="toilets"](area.a);
@@ -50,14 +51,14 @@ on conflict (source, source_id) do update set
 """
 
 
-def fetch_toilets(area: str, retries: int = 3) -> list[dict]:
+def fetch_toilets(area: str, level: str = "6", retries: int = 3) -> list[dict]:
     headers = {"User-Agent": "taxi-pitstopmap/0.1 (data loader)"}
     last_error = None
     for attempt in range(retries):
         for url in OVERPASS_URLS:
             try:
                 res = requests.post(
-                    url, data={"data": QUERY.format(area=area)}, headers=headers, timeout=120
+                    url, data={"data": QUERY.format(area=area, level=level)}, headers=headers, timeout=120
                 )
                 res.raise_for_status()
                 return res.json()["elements"]
@@ -116,10 +117,11 @@ def connect():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--area", default="강남구")
+    parser.add_argument("--level", default="6", help="행정구역 단계 (구=6, 시·도=4)")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    elements = fetch_toilets(args.area)
+    elements = fetch_toilets(args.area, args.level)
     rows = [r for r in (to_row(e) for e in elements) if r]
     print(f"{args.area} 화장실 {len(rows)}건 수집")
     if not rows:
