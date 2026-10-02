@@ -151,13 +151,13 @@ export function FilterPill({
     <button
       onClick={onClick}
       aria-pressed={active}
-      className={`flex h-11 shrink-0 items-center gap-[7px] rounded-full border px-3.5 text-sm font-extrabold whitespace-nowrap ${
+      className={`flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-sm font-extrabold whitespace-nowrap ${
         active
           ? "border-brand bg-brand text-on-brand"
           : "border-line bg-raised text-fg"
       }`}
     >
-      {Icon && <Icon size={18} aria-hidden />}
+      {Icon && <Icon size={16} aria-hidden />}
       {label}
       <span
         className={`text-xs font-bold ${active ? "text-on-brand/70" : "text-faint"}`}
