@@ -141,7 +141,7 @@ SUPABASE_DB_HOST=                   # IPv4 환경에서 Session pooler 호스트
 ```bash
 pip install -r data/requirements.txt
 python data/scripts/apply_migrations.py        # 테이블·함수 생성
-python data/scripts/load_osm_toilets.py        # OSM 화장실 (강남구)
+python data/scripts/load_osm_toilets.py --area 서울특별시 --level 4   # OSM 화장실 (서울 전체)
 python data/scripts/load_public_toilets.py     # 공공데이터 화장실 (CSV 필요)
 python data/scripts/load_parking_lots.py --region seoul   # 카카오 주차장 (서울, 카카오 호출 약 2천 회)
 ```
