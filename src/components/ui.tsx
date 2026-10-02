@@ -151,13 +151,16 @@ export function FilterPill({
     <button
       onClick={onClick}
       aria-pressed={active}
-      className={`flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-sm font-extrabold whitespace-nowrap ${
+      className={`flex h-11 shrink-0 items-center gap-1 rounded-full border px-2 text-[13px] font-extrabold whitespace-nowrap min-[520px]:gap-1.5 min-[520px]:px-3 min-[520px]:text-sm ${
         active
           ? "border-brand bg-brand text-on-brand"
           : "border-line bg-raised text-fg"
       }`}
     >
-      {Icon && <Icon size={16} aria-hidden />}
+      {/* 좁은 화면(폰)에서는 버튼 4개가 한 줄에 다 보이도록 아이콘을 뺀다 */}
+      {Icon && (
+        <Icon size={16} aria-hidden className="hidden min-[520px]:block" />
+      )}
       {label}
       <span
         className={`text-xs font-bold ${active ? "text-on-brand/70" : "text-faint"}`}
