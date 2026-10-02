@@ -20,7 +20,7 @@ export const REPORT_OPTIONS: {
     className: "bg-good text-on-solid",
   },
   { value: "enforced", label: "🔴 단속됨", className: "bg-bad text-on-solid" },
-  { value: "full", label: "⚪ 자리 없음", className: "bg-chip text-fg" },
+  { value: "full", label: "⚪ 세울 곳 없었음", className: "bg-chip text-fg" },
 ];
 
 const ERROR_MESSAGES: Record<string, string> = {

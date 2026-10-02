@@ -191,7 +191,7 @@ export default function PlaceDetail({
             </h3>
             <p className="text-xs font-semibold text-muted">
               {reportTotal > 0
-                ? `최근 30일 제보 · 자리 제공 ${reports.store} · 도로변 ${reports.roadside} · 단속 ${reports.enforced} · 자리 없음 ${reports.full}`
+                ? `최근 30일 제보 · 자리 제공 ${reports.store} · 도로변 ${reports.roadside} · 단속 ${reports.enforced} · 세울 곳 없음 ${reports.full}`
                 : "아직 제보가 없어요. 첫 제보를 남겨 주세요."}
             </p>
             <div className="mt-2.5 grid grid-cols-2 gap-2">
