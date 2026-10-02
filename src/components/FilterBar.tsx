@@ -34,7 +34,8 @@ const FADE_RIGHT: React.CSSProperties = {
 
 // 종류 버튼은 선택된 상태에서 다시 누르면 해제되고, 아무것도 선택하지 않은 상태는 "전체"다.
 // 화면보다 버튼이 길면 옆으로 밀어서 고른다(터치 스와이프, 마우스 드래그).
-// 오른쪽에 더 있으면 끝을 흐리게 하고 다음 버튼이 살짝 보여서 밀 수 있다는 것을 알려 준다.
+// 폰 폭(360px 이상)에서는 4개가 한 줄에 다 보인다. 그보다 좁으면 오른쪽 끝을 흐리게 하고
+// 다음 버튼이 살짝 보여서 밀 수 있다는 것을 알려 주며, 누른 버튼은 화면 안으로 가져온다.
 export default function FilterBar({
   counts,
   filter,
@@ -94,6 +95,12 @@ export default function FilterBar({
     }
   };
 
+  // 가장자리에 걸쳐 잘려 있던 버튼을 눌러도 화면 안에 온전히 보이게 한다
+  const onClick = (e: React.MouseEvent) => {
+    const button = (e.target as HTMLElement).closest("button");
+    button?.scrollIntoView({ inline: "center", block: "nearest" });
+  };
+
   return (
     <div>
       <div
@@ -101,8 +108,9 @@ export default function FilterBar({
         onScroll={updateHasMore}
         onMouseDown={onMouseDown}
         onClickCapture={onClickCapture}
+        onClick={onClick}
         style={hasMore ? FADE_RIGHT : undefined}
-        className="no-scrollbar flex cursor-grab gap-1.5 overflow-x-auto overscroll-x-contain px-4 py-1.5 [touch-action:pan-x] active:cursor-grabbing"
+        className="no-scrollbar flex cursor-grab gap-1 overflow-x-auto overscroll-x-contain px-3 py-1.5 min-[520px]:gap-1.5 min-[520px]:px-4 [touch-action:pan-x] active:cursor-grabbing"
       >
         <FilterPill
           active={filter === "all"}
