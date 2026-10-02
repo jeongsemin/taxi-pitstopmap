@@ -43,7 +43,12 @@ type ScoreRow = {
   nearest_lot_distance: number | null;
   nearest_lot_name: string | null;
   reasons: string[];
-  reports_parkable: number;
+  store_parking: "reported" | "name_match" | "building" | "none";
+  store_parking_name: string | null;
+  roadside_distance: number | null;
+  roadside_name: string | null;
+  reports_store: number;
+  reports_roadside: number;
   reports_enforced: number;
   reports_full: number;
   no_data: boolean;
@@ -95,7 +100,14 @@ async function fetchToilets(
 async function attachParkingScores(places: Place[]): Promise<boolean> {
   if (places.length === 0) return true;
   const { data, error } = await supabase.rpc("score_places", {
-    points: places.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng })),
+    // 이름·주소는 가게 자체 주차장 추정에 쓴다
+    points: places.map((p) => ({
+      id: p.id,
+      lat: p.lat,
+      lng: p.lng,
+      name: p.name,
+      address: p.address,
+    })),
   });
   if (error) {
     console.error("주정차 점수 계산 실패:", error.message);
@@ -112,8 +124,17 @@ async function attachParkingScores(places: Place[]): Promise<boolean> {
       nearestLotDistance: r.nearest_lot_distance,
       nearestLotName: r.nearest_lot_name,
       reasons: r.reasons ?? [],
+      storeParking: {
+        kind: r.store_parking ?? "none",
+        lotName: r.store_parking_name ?? null,
+      },
+      roadside:
+        r.roadside_distance === null || r.roadside_distance === undefined
+          ? null
+          : { distance: r.roadside_distance, name: r.roadside_name ?? null },
       reports: {
-        parkable: r.reports_parkable,
+        store: r.reports_store ?? 0,
+        roadside: r.reports_roadside ?? 0,
         enforced: r.reports_enforced,
         full: r.reports_full,
       },

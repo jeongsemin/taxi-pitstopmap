@@ -18,7 +18,7 @@ import {
   isOpen24h,
 } from "@/components/ui";
 import { distanceMeters } from "@/lib/geo";
-import { parkingLevel } from "@/lib/parking";
+import { isParkable } from "@/lib/parking";
 import type { Place, PlaceType } from "@/types/place";
 
 const KakaoMap = dynamic(() => import("@/components/KakaoMap"), { ssr: false });
@@ -201,7 +201,7 @@ export default function Home() {
   // 종류 필터와 주차 가능 필터는 함께 적용된다(AND).
   // 각 버튼의 개수는 "그 버튼을 눌렀을 때 보이게 될 장소 수"라서, 다른 쪽 필터 조건을 반영한다.
   const matchesParkable = useCallback(
-    (p: Place) => !parkableOnly || parkingLevel(p.parking.score) === "good",
+    (p: Place) => !parkableOnly || isParkable(p.parking.score),
     [parkableOnly],
   );
 
@@ -223,8 +223,7 @@ export default function Home() {
         .length,
       parkable: allPlaces.filter(
         (p) =>
-          (filter === "all" || p.type === filter) &&
-          parkingLevel(p.parking.score) === "good",
+          (filter === "all" || p.type === filter) && isParkable(p.parking.score),
       ).length,
     }),
     [allPlaces, filter, matchesParkable],

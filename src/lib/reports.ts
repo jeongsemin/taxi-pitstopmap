@@ -1,7 +1,8 @@
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import type { Place } from "@/types/place";
 
-export type ReportType = "parkable" | "enforced" | "full";
+// parkable 은 이전 화면이 보내던 값(도로변 제보와 같게 취급)이라 새로 보내지는 않는다.
+export type ReportType = "store_parking" | "roadside_ok" | "enforced" | "full";
 
 export const REPORT_OPTIONS: {
   value: ReportType;
@@ -9,8 +10,13 @@ export const REPORT_OPTIONS: {
   className: string;
 }[] = [
   {
-    value: "parkable",
-    label: "🟢 세울 수 있었음",
+    value: "store_parking",
+    label: "🟢 가게 주차장 이용함",
+    className: "bg-good text-on-solid",
+  },
+  {
+    value: "roadside_ok",
+    label: "🟢 도로변에 세움",
     className: "bg-good text-on-solid",
   },
   { value: "enforced", label: "🔴 단속됨", className: "bg-bad text-on-solid" },
