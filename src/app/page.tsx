@@ -268,16 +268,35 @@ export default function Home() {
     else setDetailId(null);
   }, []);
 
+  // 하단 탭도 같은 방식이다. 지도에서 다른 탭으로 갈 때만 기록을 쌓고(뒤로가기 → 지도),
+  // 목록↔설정 이동은 기록을 바꿔 끼운다. 지도로 돌아갈 때는 기록을 되돌린다.
+  const changeTab = useCallback((next: Tab) => {
+    const current: Tab = window.history.state?.tab ?? "map";
+    if (next === current) return;
+    if (next === "map") {
+      if (window.history.state?.tab) window.history.back();
+      else setTab("map");
+      return;
+    }
+    const state = { ...window.history.state, tab: next };
+    if (current === "map") window.history.pushState(state, "");
+    else window.history.replaceState(state, "");
+    setTab(next);
+  }, []);
+
   useEffect(() => {
-    // 새로고침 뒤에 남은 상세 기록 표시는 지운다 (화면은 상세가 닫힌 상태로 시작하므로)
-    if (window.history.state?.detailId) {
+    // 새로고침 뒤에 남은 상세·탭 기록 표시는 지운다 (화면은 지도 탭, 상세가 닫힌 상태로 시작하므로)
+    const state = window.history.state;
+    if (state?.detailId || state?.tab) {
       const rest = Object.fromEntries(
-        Object.entries(window.history.state).filter(([k]) => k !== "detailId"),
+        Object.entries(state).filter(([k]) => k !== "detailId" && k !== "tab"),
       );
       window.history.replaceState(rest, "");
     }
-    const onPopState = () =>
+    const onPopState = () => {
       setDetailId(window.history.state?.detailId ?? null);
+      setTab(window.history.state?.tab ?? "map");
+    };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
@@ -496,7 +515,7 @@ export default function Home() {
         {tab === "settings" && <SettingsScreen />}
       </main>
 
-      <BottomNav tab={tab} onChange={setTab} />
+      <BottomNav tab={tab} onChange={changeTab} />
 
       {detail && (
         <PlaceDetail
