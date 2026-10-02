@@ -11,7 +11,7 @@ export const REPORT_OPTIONS: {
 }[] = [
   {
     value: "store_parking",
-    label: "🟢 가게 주차장 이용함",
+    label: "🟢 주차 자리 제공됨",
     className: "bg-good text-on-solid",
   },
   {

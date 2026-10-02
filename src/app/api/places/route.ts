@@ -100,7 +100,7 @@ async function fetchToilets(
 async function attachParkingScores(places: Place[]): Promise<boolean> {
   if (places.length === 0) return true;
   const { data, error } = await supabase.rpc("score_places", {
-    // 이름·주소는 가게 자체 주차장 추정에 쓴다
+    // 이름·주소는 주차 자리 제공 여부 추정에 쓴다
     points: places.map((p) => ({
       id: p.id,
       lat: p.lat,

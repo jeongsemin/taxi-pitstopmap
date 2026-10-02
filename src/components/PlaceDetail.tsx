@@ -163,7 +163,7 @@ export default function PlaceDetail({
               )}
               {parking.score !== null && (
                 <div className="mt-2 space-y-2.5 text-sm text-fg/90">
-                  <ParkingLine title={`${storeWord} 자체 주차`}>
+                  <ParkingLine title="주차 자리 제공">
                     {storeParkingText(parking, reports.store, storeWord)}
                   </ParkingLine>
                   <ParkingLine title="도로변 주차">
@@ -179,7 +179,7 @@ export default function PlaceDetail({
                 </div>
               )}
               <p className="mt-2 text-xs font-semibold text-muted">
-                주차장 위치·이름과 사용자 제보로 추정한 값이에요. 가게가 주차를
+                주차장 위치·이름과 사용자 제보로 추정한 값이에요. 주차 자리를
                 제공하는지, 그 도로에 세워도 되는지는 현장에서 확인하세요.
               </p>
             </div>
@@ -191,7 +191,7 @@ export default function PlaceDetail({
             </h3>
             <p className="text-xs font-semibold text-muted">
               {reportTotal > 0
-                ? `최근 30일 제보 · ${storeWord} 주차 ${reports.store} · 도로변 ${reports.roadside} · 단속 ${reports.enforced} · 자리 없음 ${reports.full}`
+                ? `최근 30일 제보 · 자리 제공 ${reports.store} · 도로변 ${reports.roadside} · 단속 ${reports.enforced} · 자리 없음 ${reports.full}`
                 : "아직 제보가 없어요. 첫 제보를 남겨 주세요."}
             </p>
             <div className="mt-2.5 grid grid-cols-2 gap-2">
@@ -202,9 +202,7 @@ export default function PlaceDetail({
                   disabled={submitting !== null}
                   className={`min-h-14 rounded-2xl px-1 text-sm font-extrabold disabled:opacity-50 ${o.className}`}
                 >
-                  {submitting === o.value
-                    ? "전송 중…"
-                    : o.label.replace("가게", storeWord)}
+                  {submitting === o.value ? "전송 중…" : o.label}
                 </button>
               ))}
             </div>
@@ -257,15 +255,15 @@ function storeParkingText(
 ) {
   const { kind, lotName } = parking.storeParking;
   if (kind === "reported") {
-    return `이용할 수 있어요 (이용했다는 제보 ${reported}명)`;
+    return `주차 자리를 제공해요 (제공받았다는 제보 ${reported}명)`;
   }
   if (kind === "name_match") {
-    return `${storeWord}나 건물의 주차장이 있을 가능성이 높아요 (추정: ${lotName})`;
+    return `주차 자리를 제공할 가능성이 높아요 (추정: ${lotName})`;
   }
   if (kind === "building") {
-    return `같은 건물이거나 바로 옆에 주차장이 있어요 (추정: ${lotName}). 이용 가능한지는 확인이 필요해요.`;
+    return `같은 건물이거나 바로 옆에 주차장이 있어요 (추정: ${lotName}). 손님에게 자리를 내주는지는 확인이 필요해요.`;
   }
-  return `확인된 정보가 없어요. ${storeWord}에 주차가 되는지 확인해 보세요.`;
+  return `주차 자리 제공 여부를 확인하지 못했어요. ${storeWord}에 문의해 보세요.`;
 }
 
 function roadsideText(

@@ -3,7 +3,7 @@ export type ParkingLevel = "good" | "unsure" | "hard" | "unknown";
 // score 가 null 이면 점수가 없는 것이다.
 //  - noData: 주차장 데이터가 없는 지역이라 알 수 없음 ("세울 수 없음"이 아니다)
 //  - noData 가 false 면 점수 조회에 실패한 경우
-// 가게(시설) 자체 주차:
+// 주차 자리 제공 유무(가게·시설이 손님에게 주차 자리를 내주는가):
 //  reported   제보로 확인됨 / name_match 이름이 같은 주차장이 있음(추정)
 //  building   같은 건물이거나 바로 옆 주차장이 있음(추정) / none 근거 없음
 export type StoreParkingKind = "reported" | "name_match" | "building" | "none";
@@ -32,7 +32,7 @@ export const EMPTY_PARKING_SCORE: ParkingScore = {
   reports: { store: 0, roadside: 0, enforced: 0, full: 0 },
 };
 
-// 가게 자체 주차나 도로변 주차의 근거가 있는 장소(🟡 이상). "주차 가능" 필터가 쓴다.
+// 주차 자리 제공이나 도로변 주차의 근거가 있는 장소(🟡 이상). "주차 가능" 필터가 쓴다.
 export function isParkable(score: number | null): boolean {
   return score !== null && score >= 30;
 }
