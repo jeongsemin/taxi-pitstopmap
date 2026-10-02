@@ -52,6 +52,8 @@ type ScoreRow = {
   reports_enforced: number;
   reports_full: number;
   no_data: boolean;
+  camera_distance: number | null;
+  camera_name: string | null;
 };
 
 type ToiletRow = {
@@ -132,6 +134,10 @@ async function attachParkingScores(places: Place[]): Promise<boolean> {
         r.roadside_distance === null || r.roadside_distance === undefined
           ? null
           : { distance: r.roadside_distance, name: r.roadside_name ?? null },
+      camera:
+        r.camera_distance === null || r.camera_distance === undefined
+          ? null
+          : { distance: r.camera_distance, name: r.camera_name ?? null },
       reports: {
         store: r.reports_store ?? 0,
         roadside: r.reports_roadside ?? 0,

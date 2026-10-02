@@ -168,6 +168,11 @@ export default function PlaceDetail({
                   </ParkingLine>
                   <ParkingLine title="도로변 주차">
                     {roadsideText(parking, reports)}
+                    {cameraText(parking) && (
+                      <span className="mt-1 block font-bold text-bad">
+                        ⚠ {cameraText(parking)}
+                      </span>
+                    )}
                   </ParkingLine>
                   {parking.nearestLotName && (
                     <p className="text-xs font-semibold text-muted">
@@ -286,6 +291,13 @@ function roadsideText(
     return "확인된 정보가 없어요. 도로변은 단속될 수 있으니 주정차 표지판을 꼭 확인하세요.";
   }
   return parts.join(" · ");
+}
+
+// 단속 카메라 안내 (경고용). 카메라가 없다고 해서 세워도 된다는 뜻은 아니라서 없을 때는 아무 말도 하지 않는다.
+function cameraText(parking: Place["parking"]) {
+  if (!parking.camera) return null;
+  const { distance, name } = parking.camera;
+  return `${distance}m 안에 주정차 단속 카메라가 있어요${name ? ` (${name})` : ""}. 도로변에 세우면 단속될 수 있어요.`;
 }
 
 function ParkingLine({
