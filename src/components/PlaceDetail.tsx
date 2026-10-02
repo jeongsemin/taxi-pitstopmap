@@ -45,8 +45,11 @@ export default function PlaceDetail({
   const { parking } = place;
   const level = parkingLevel(parking.score);
   const style = LEVEL_STYLE[level];
+  const { reports } = parking;
   const reportTotal =
-    parking.reports.parkable + parking.reports.enforced + parking.reports.full;
+    reports.store + reports.roadside + reports.enforced + reports.full;
+  // 식당은 "가게", 화장실은 "시설"로 부른다
+  const storeWord = place.type === "toilet" ? "시설" : "가게";
 
   const mapCenter = useMemo(
     () => ({ lat: place.lat, lng: place.lng }),
@@ -153,30 +156,31 @@ export default function PlaceDetail({
               </p>
               {parking.score === null && parking.noData && (
                 <p className="mt-1 text-sm text-fg/90">
-                  주차장 데이터가 있는 곳은 아직 서울 강남구뿐이에요. 이곳은
+                  주차장 데이터가 있는 곳은 아직 서울뿐이에요. 이곳은
                   &quot;세울 수 없다&quot;는 뜻이 아니라 알 수 없다는 뜻이에요.
                   직접 세워 보셨다면 아래에서 제보해 주세요.
                 </p>
               )}
               {parking.score !== null && (
-                <ul className="mt-1 list-disc pl-4 text-sm text-fg/90">
-                  {parking.reasons.length > 0 ? (
-                    parking.reasons.map((r) => <li key={r}>{r}</li>)
-                  ) : (
-                    <li>근처 200m 안에 알려진 주차장이 없어요</li>
-                  )}
+                <div className="mt-2 space-y-2.5 text-sm text-fg/90">
+                  <ParkingLine title="주차 자리 제공">
+                    {storeParkingText(parking, reports.store, storeWord)}
+                  </ParkingLine>
+                  <ParkingLine title="도로변 주차">
+                    {roadsideText(parking, reports)}
+                  </ParkingLine>
                   {parking.nearestLotName && (
-                    <li>
-                      가장 가까운 주차장: {parking.nearestLotName}
+                    <p className="text-xs font-semibold text-muted">
+                      참고 · 가장 가까운 주차장: {parking.nearestLotName}
                       {parking.nearestLotDistance !== null &&
                         ` (${parking.nearestLotDistance}m)`}
-                    </li>
+                    </p>
                   )}
-                </ul>
+                </div>
               )}
               <p className="mt-2 text-xs font-semibold text-muted">
-                주변 주차장 위치와 제보로 추정한 값이며, 실제 단속 여부는
-                현장에서 확인하세요.
+                주차장 위치·이름과 사용자 제보로 추정한 값이에요. 주차 자리를
+                제공하는지, 그 도로에 세워도 되는지는 현장에서 확인하세요.
               </p>
             </div>
           </div>
@@ -187,10 +191,10 @@ export default function PlaceDetail({
             </h3>
             <p className="text-xs font-semibold text-muted">
               {reportTotal > 0
-                ? `최근 30일 제보 · 가능 ${parking.reports.parkable} · 단속 ${parking.reports.enforced} · 자리 없음 ${parking.reports.full}`
+                ? `최근 30일 제보 · 자리 제공 ${reports.store} · 도로변 ${reports.roadside} · 단속 ${reports.enforced} · 세울 곳 없음 ${reports.full}`
                 : "아직 제보가 없어요. 첫 제보를 남겨 주세요."}
             </p>
-            <div className="mt-2.5 grid grid-cols-3 gap-2">
+            <div className="mt-2.5 grid grid-cols-2 gap-2">
               {REPORT_OPTIONS.map((o) => (
                 <button
                   key={o.value}
@@ -240,6 +244,61 @@ export default function PlaceDetail({
           <MapAppButtons place={place} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function storeParkingText(
+  parking: Place["parking"],
+  reported: number,
+  storeWord: string,
+) {
+  const { kind, lotName } = parking.storeParking;
+  if (kind === "reported") {
+    return `주차 자리를 제공해요 (제공받았다는 제보 ${reported}명)`;
+  }
+  if (kind === "name_match") {
+    return `주차 자리를 제공할 가능성이 높아요 (추정: ${lotName})`;
+  }
+  if (kind === "building") {
+    return `같은 건물이거나 바로 옆에 주차장이 있어요 (추정: ${lotName}). 손님에게 자리를 내주는지는 확인이 필요해요.`;
+  }
+  return `주차 자리 제공 여부를 확인하지 못했어요. ${storeWord}에 문의해 보세요.`;
+}
+
+function roadsideText(
+  parking: Place["parking"],
+  reports: Place["parking"]["reports"],
+) {
+  const parts: string[] = [];
+  if (parking.roadside) {
+    parts.push(
+      `근처에 도로변 노상주차장이 있어요 (${parking.roadside.name ?? "노상주차장"}, ${parking.roadside.distance}m)`,
+    );
+  }
+  if (reports.roadside > 0) {
+    parts.push(`도로변에 세웠다는 제보 ${reports.roadside}명`);
+  }
+  if (reports.enforced > 0) {
+    parts.push(`단속됐다는 제보 ${reports.enforced}명`);
+  }
+  if (parts.length === 0) {
+    return "확인된 정보가 없어요. 도로변은 단속될 수 있으니 주정차 표지판을 꼭 확인하세요.";
+  }
+  return parts.join(" · ");
+}
+
+function ParkingLine({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-extrabold text-muted">{title}</p>
+      <p className="mt-0.5">{children}</p>
     </div>
   );
 }

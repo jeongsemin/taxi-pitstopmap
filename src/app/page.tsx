@@ -18,7 +18,7 @@ import {
   isOpen24h,
 } from "@/components/ui";
 import { distanceMeters } from "@/lib/geo";
-import { parkingLevel } from "@/lib/parking";
+import { isParkable } from "@/lib/parking";
 import type { Place, PlaceType } from "@/types/place";
 
 const KakaoMap = dynamic(() => import("@/components/KakaoMap"), { ssr: false });
@@ -123,21 +123,36 @@ export default function Home() {
       return;
     }
     setLocMessage("현재 위치 확인 중…");
+    const onSuccess = (pos: GeolocationPosition) => {
+      const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      originRef.current = here;
+      setOrigin(here);
+      moveSearchTo(here);
+      setLocMessage("현재 위치 기준");
+      setLocationReady(true);
+    };
+    const onFail = (err: GeolocationPositionError) => {
+      // 권한을 거부한 경우와, 실내 등에서 위치를 못 잡은 경우(시간 초과·불가)를 구분해 알려 준다
+      setLocMessage(
+        err.code === err.PERMISSION_DENIED
+          ? "위치 권한 없음 – 강남역 기준"
+          : "위치를 확인하지 못함 – 강남역 기준",
+      );
+      moveSearchTo(originRef.current);
+      setLocationReady(true);
+    };
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        originRef.current = here;
-        setOrigin(here);
-        moveSearchTo(here);
-        setLocMessage("현재 위치 기준");
-        setLocationReady(true);
+      onSuccess,
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) return onFail(err);
+        // GPS 로 못 잡으면 기지국·Wi-Fi 기반의 덜 정확한 위치로 한 번 더 시도한다
+        navigator.geolocation.getCurrentPosition(onSuccess, onFail, {
+          enableHighAccuracy: false,
+          timeout: 8000,
+          maximumAge: 60000,
+        });
       },
-      () => {
-        setLocMessage("위치 권한 없음 – 강남역 기준");
-        moveSearchTo(originRef.current);
-        setLocationReady(true);
-      },
-      { enableHighAccuracy: true, timeout: 10000 },
+      { enableHighAccuracy: true, timeout: 6000 },
     );
   }, [moveSearchTo]);
 
@@ -186,7 +201,7 @@ export default function Home() {
   // 종류 필터와 주차 가능 필터는 함께 적용된다(AND).
   // 각 버튼의 개수는 "그 버튼을 눌렀을 때 보이게 될 장소 수"라서, 다른 쪽 필터 조건을 반영한다.
   const matchesParkable = useCallback(
-    (p: Place) => !parkableOnly || parkingLevel(p.parking.score) === "good",
+    (p: Place) => !parkableOnly || isParkable(p.parking.score),
     [parkableOnly],
   );
 
@@ -208,8 +223,7 @@ export default function Home() {
         .length,
       parkable: allPlaces.filter(
         (p) =>
-          (filter === "all" || p.type === filter) &&
-          parkingLevel(p.parking.score) === "good",
+          (filter === "all" || p.type === filter) && isParkable(p.parking.score),
       ).length,
     }),
     [allPlaces, filter, matchesParkable],

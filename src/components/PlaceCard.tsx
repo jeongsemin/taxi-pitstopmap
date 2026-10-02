@@ -18,7 +18,13 @@ export function reasonText(place: Place) {
       ? "주차장 데이터가 없는 지역"
       : "점수를 불러오지 못했어요";
   }
-  return place.parking.reasons[0] ?? "근처 주차장 정보 없음";
+  const { storeParking, roadside, reports } = place.parking;
+  if (reports.enforced > 0) return `단속 제보 ${reports.enforced}명`;
+  if (storeParking.kind === "reported") return "주차 자리 제공 제보";
+  if (storeParking.kind === "name_match") return "주차 자리 제공 추정";
+  if (storeParking.kind === "building") return "건물·옆 주차장 (추정)";
+  if (roadside) return `노상주차장 ${roadside.distance}m`;
+  return "주차 정보 없음";
 }
 
 export default function PlaceCard({ place, onClick }: Props) {
