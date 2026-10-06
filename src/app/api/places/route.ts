@@ -2,9 +2,11 @@ import { after, type NextRequest } from "next/server";
 import { supabase } from "@/lib/supabase";
 import {
   fetchRestaurants,
+  KakaoQuotaError,
   type RestaurantResult,
 } from "@/lib/kakao-restaurants";
 import { recordServerError } from "@/lib/error-log";
+import { recordKakaoUsage } from "@/lib/usage";
 import { EMPTY_PARKING_SCORE } from "@/lib/parking";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import type { Place, PlaceType } from "@/types/place";
@@ -28,7 +30,9 @@ const roundCoord = (v: number) => Math.round(v * 1e4) / 1e4;
 
 // 성공 응답은 CDN 에 잠깐 캐시해 같은 지역 조회가 서버와 카카오를 다시 부르지 않게 한다.
 // 제보가 점수에 바로 반영되도록 짧게(30초) 두고, 화면은 제보 직후에 캐시를 우회해서 다시 조회한다.
-const CACHE_OK = "public, s-maxage=30, stale-while-revalidate=60";
+// CDN 은 인스턴스와 상관없이 같은 주소의 응답을 나눠 쓰므로 카카오·서버 호출을 가장 크게 줄여 준다.
+// 다른 사용자의 제보가 점수에 반영되는 데 최대 2분 걸리지만, 본인이 제보한 직후에는 캐시를 우회해 바로 보인다.
+const CACHE_OK = "public, s-maxage=120, stale-while-revalidate=300";
 const NO_CACHE = "no-store";
 
 function json(body: unknown, status = 200, cacheControl = NO_CACHE) {
@@ -228,10 +232,15 @@ export async function GET(request: NextRequest) {
   let restaurants = noRestaurants;
   let toilets: Place[] = [];
 
+  let quotaHit = false;
   if (restaurantsResult.status === "fulfilled") {
     restaurants = restaurantsResult.value;
+    // 카카오를 새로 부른 경우에만 호출 수를 기록한다 (응답 뒤에)
+    const calls = restaurants.calls ?? 0;
+    if (calls > 0) after(() => recordKakaoUsage(calls));
   } else {
     failed.push("restaurant");
+    quotaHit = restaurantsResult.reason instanceof KakaoQuotaError;
     errors.push((restaurantsResult.reason as Error).message);
   }
   if (toiletsResult.status === "fulfilled") {
@@ -244,7 +253,7 @@ export async function GET(request: NextRequest) {
   // 요청한 종류가 전부 실패하면 오류로 응답한다.
   if (failed.length === types.length) {
     after(() =>
-      recordServerError("places_failed", errors.join(" | "), {
+      recordServerError(quotaHit ? "kakao_quota" : "places_failed", errors.join(" | "), {
         status: 502,
         failed,
         radius,
@@ -254,7 +263,10 @@ export async function GET(request: NextRequest) {
   }
   if (errors.length > 0) {
     after(() =>
-      recordServerError("places_partial", errors.join(" | "), { failed, radius }),
+      recordServerError(quotaHit ? "kakao_quota" : "places_partial", errors.join(" | "), {
+        failed,
+        radius,
+      }),
     );
   }
 
@@ -264,13 +276,17 @@ export async function GET(request: NextRequest) {
   const scored = await attachParkingScores(places);
 
   // 일부만 불러온 응답은 캐시하지 않는다 (복구된 뒤에도 잘못된 결과가 남지 않게)
-  const degraded = failed.length > 0 || !scored;
+  // 옛 캐시로 답했거나 일부만 받은 결과도 캐시하지 않는다
+  const degraded =
+    failed.length > 0 || !scored || !!restaurants.stale || !!restaurants.partial;
   return json(
     {
       places,
       scored,
       // 일부 종류만 실패한 경우 어떤 종류인지 알려준다 (화면에서 안내)
       failed,
+      // 카카오 호출 한도를 넘어 식당을 못 받은 경우 (화면에서 원인을 따로 안내)
+      quota: quotaHit,
       // 식당은 카카오 검색 한도 때문에 반경 안 전부를 받지 못할 수 있다. 실제 개수를 함께 알려준다.
       restaurants: {
         total: restaurants.total,

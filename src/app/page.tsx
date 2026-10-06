@@ -45,9 +45,18 @@ const TYPE_LABEL: Record<PlaceType, string> = {
   toilet: "화장실",
 };
 
-function partialFailureMessage(failed: PlaceType[], scoreFailed: boolean) {
+function partialFailureMessage(
+  failed: PlaceType[],
+  scoreFailed: boolean,
+  quota: boolean,
+) {
   const parts: string[] = [];
-  if (failed.length > 0) {
+  if (quota && failed.includes("restaurant")) {
+    // 카카오 호출 한도 초과: 잠시 뒤에 다시 받을 수 있다
+    parts.push(
+      "지금 식당 조회가 몰려서 잠시 쉬고 있어요. 조금 뒤에 다시 시도해 주세요. 그동안 화장실은 볼 수 있어요.",
+    );
+  } else if (failed.length > 0) {
     parts.push(
       `${failed.map((t) => TYPE_LABEL[t]).join("·")} 정보를 불러오지 못했어요. 나머지만 보여 드려요.`,
     );
@@ -102,6 +111,7 @@ export default function Home() {
   );
   // 일부 종류(식당/화장실)나 점수만 불러오지 못한 경우
   const [failedTypes, setFailedTypes] = useState<PlaceType[]>([]);
+  const [quotaHit, setQuotaHit] = useState(false);
   const [scoreFailed, setScoreFailed] = useState(false);
   // 위치 확인이 끝나기 전에는 장소를 조회하지 않는다 (강남역 결과가 먼저 보였다 바뀌는 것을 막는다)
   const [locationReady, setLocationReady] = useState(false);
@@ -209,6 +219,7 @@ export default function Home() {
         setAllPlaces(data.places);
         setRestaurantMeta(data.restaurants ?? null);
         setFailedTypes(data.failed ?? []);
+        setQuotaHit(data.quota === true);
         setScoreFailed(data.scored === false);
         setError(null);
       })
@@ -290,7 +301,9 @@ export default function Home() {
 
   // 일부만 불러온 경우의 안내 (전체 실패는 error 로 따로 보여 준다)
   const partialNotice =
-    !loading && !error ? partialFailureMessage(failedTypes, scoreFailed) : "";
+    !loading && !error
+      ? partialFailureMessage(failedTypes, scoreFailed, quotaHit)
+      : "";
 
   // 식당을 일부만 받은 경우의 안내 (화장실만 보고 있을 때는 필요 없다)
   const showTruncation =
