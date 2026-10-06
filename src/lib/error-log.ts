@@ -6,7 +6,8 @@ import { supabase } from "@/lib/supabase";
 export type ServerErrorKind =
   | "places_failed" // 장소 조회가 전부 실패 (502/500)
   | "places_partial" // 식당 또는 화장실 중 한쪽만 실패
-  | "score_failed"; // 주정차 점수 계산 실패
+  | "score_failed" // 주정차 점수 계산 실패
+  | "kakao_quota"; // 카카오 호출 한도 초과 (잠시 식당 조회를 멈춤)
 
 // 어느 배포 버전에서 난 오류인지 알 수 있게 커밋 앞자리를 함께 남긴다.
 const RELEASE = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null;

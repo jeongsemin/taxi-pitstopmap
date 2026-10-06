@@ -10,12 +10,28 @@ const KAKAO_CATEGORY_URL =
 const RESTAURANT_CODE = "FD6";
 const PAGE_SIZE = 15;
 const PAGES_PER_QUERY = 3;
-const MAX_CALLS = 20; // 한 번의 조회에서 쓰는 카카오 호출 수 상한
+// 한 번의 조회에서 쓰는 카카오 호출 수 상한. 카카오 한도가 빠듯하면 환경변수 KAKAO_MAX_CALLS 로 낮춘다
+// (낮출수록 호출은 줄지만 반경 안 식당을 덜 받아 온다).
+const MAX_CALLS = (() => {
+  const n = Number(process.env.KAKAO_MAX_CALLS);
+  return Number.isInteger(n) && n >= 3 && n <= 40 ? n : 20;
+})();
 const CONCURRENCY = 6;
 const MIN_CELL_METERS = 200;
 const MAX_RESULTS = 400;
-const CACHE_TTL_MS = 5 * 60_000; // 식당 목록은 자주 바뀌지 않으므로 5분
-const CACHE_MAX_ENTRIES = 100;
+const CACHE_TTL_MS = 30 * 60_000; // 식당 목록은 자주 바뀌지 않으므로 30분
+const PARTIAL_TTL_MS = 60_000; // 일부 칸이 실패해 덜 받은 결과는 금방 다시 받는다
+const STALE_MAX_MS = 6 * 60 * 60_000; // 카카오가 실패하면 6시간 안의 옛 결과라도 보여 준다
+const QUOTA_COOLDOWN_MS = 10 * 60_000; // 한도 초과를 알려 오면 이 시간 동안 호출을 멈춘다
+const CACHE_MAX_ENTRIES = 200;
+
+// 카카오가 호출 한도 초과(HTTP 429)를 알려 올 때. 계속 호출해도 소용없고 한도만 더 쓰므로 잠시 멈춘다.
+export class KakaoQuotaError extends Error {
+  constructor() {
+    super("카카오 API 호출 한도를 넘었어요");
+    this.name = "KakaoQuotaError";
+  }
+}
 
 type KakaoDocument = {
   id: string;
@@ -39,6 +55,12 @@ export type RestaurantResult = {
   places: Place[];
   // 반경 안 식당의 실제 전체 개수 (카카오 집계)
   total: number;
+  // 이번 조회에서 실제로 쓴 카카오 호출 수 (캐시에서 답했으면 0)
+  calls?: number;
+  // 일부 칸 조회가 실패해 덜 받은 결과
+  partial?: boolean;
+  // 카카오가 실패해서 옛 캐시로 답한 결과
+  stale?: boolean;
 };
 
 type Rect = { west: number; south: number; east: number; north: number };
@@ -59,6 +81,7 @@ async function query(
     headers: { Authorization: `KakaoAK ${key}` },
     cache: "no-store",
   });
+  if (res.status === 429) throw new KakaoQuotaError();
   if (!res.ok) throw new Error(`카카오 API 호출 실패 (${res.status})`);
   return res.json();
 }
@@ -133,6 +156,14 @@ async function load(
   radius: number,
   key: string,
 ): Promise<RestaurantResult> {
+  // 이번 조회에서 실제로 부른 카카오 호출 수와, 실패해서 건너뛴 칸 수
+  let used = 0;
+  let failedTiles = 0;
+  const q = (params: Record<string, string>) => {
+    used++;
+    return query(params, key);
+  };
+
   const found = new Map<string, Place>();
   const add = (docs: KakaoDocument[]) => {
     for (const d of docs) {
@@ -145,6 +176,8 @@ async function load(
       .sort((a, b) => a.distance - b.distance)
       .slice(0, MAX_RESULTS),
     total,
+    calls: used,
+    partial: failedTiles > 0,
   });
 
   // 원 검색 첫 페이지: 전체 개수와 가장 가까운 식당을 얻는다.
@@ -153,7 +186,7 @@ async function load(
     y: String(lat),
     radius: String(radius),
   };
-  const first = await query({ ...circle, page: "1" }, key);
+  const first = await q({ ...circle, page: "1" });
   add(first.documents);
   const total = first.meta.total_count;
 
@@ -162,7 +195,7 @@ async function load(
     const pages = Math.ceil(total / PAGE_SIZE);
     const rest = await Promise.all(
       Array.from({ length: Math.max(pages - 1, 0) }, (_, i) =>
-        query({ ...circle, page: String(i + 2) }, key),
+        q({ ...circle, page: String(i + 2) }),
       ),
     );
     rest.forEach((r) => add(r.documents));
@@ -185,7 +218,7 @@ async function load(
       };
       try {
         calls++;
-        const r = await query({ ...base, page: "1" }, key);
+        const r = await q({ ...base, page: "1" });
         add(r.documents);
         const pages = Math.min(
           PAGES_PER_QUERY,
@@ -193,9 +226,12 @@ async function load(
         );
         for (let page = 2; page <= pages && calls < MAX_CALLS; page++) {
           calls++;
-          add((await query({ ...base, page: String(page) }, key)).documents);
+          add((await q({ ...base, page: String(page) })).documents);
         }
       } catch (e) {
+        // 한도 초과는 일부 실패로 넘기지 않고 알린다 (덜 받은 결과가 오래 캐시되지 않게)
+        if (e instanceof KakaoQuotaError) throw e;
+        failedTiles++;
         console.error("식당 격자 조회 일부 실패:", (e as Error).message);
         return;
       }
@@ -206,8 +242,18 @@ async function load(
   return finish(total);
 }
 
-// 같은 장소를 짧은 시간에 다시 조회할 때 카카오 호출을 아낀다 (서버 인스턴스 메모리, 5분).
-const cache = new Map<string, { expires: number; value: RestaurantResult }>();
+// 같은 장소를 다시 조회할 때 카카오 호출을 아낀다 (서버 인스턴스 메모리). 서버리스에서는 인스턴스마다
+// 따로 갖는다. 같은 지역 조회는 CDN 캐시(응답 헤더)가 인스턴스와 상관없이 먼저 막아 준다.
+// 만료된 항목도 STALE_MAX_MS 동안은 남겨 두었다가, 카카오가 실패하면 대신 보여 준다.
+type CacheEntry = {
+  expires: number;
+  staleUntil: number;
+  value: RestaurantResult;
+};
+const cache = new Map<string, CacheEntry>();
+
+// 한도 초과를 알려 온 뒤 이 시각까지는 카카오를 부르지 않는다
+let blockedUntil = 0;
 
 export async function fetchRestaurants(
   lat: number,
@@ -216,15 +262,34 @@ export async function fetchRestaurants(
   key: string,
 ): Promise<RestaurantResult> {
   const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)},${radius}`;
+  const now = Date.now();
   const hit = cache.get(cacheKey);
-  if (hit && hit.expires > Date.now()) return hit.value;
+  if (hit && hit.expires > now) return { ...hit.value, calls: 0 };
 
-  const value = await load(lat, lng, radius, key);
+  const stale: RestaurantResult | null =
+    hit && hit.staleUntil > now ? { ...hit.value, calls: 0, stale: true } : null;
 
-  if (cache.size >= CACHE_MAX_ENTRIES) {
-    const oldest = cache.keys().next().value;
-    if (oldest !== undefined) cache.delete(oldest);
+  if (now < blockedUntil) {
+    if (stale) return stale;
+    throw new KakaoQuotaError();
   }
-  cache.set(cacheKey, { expires: Date.now() + CACHE_TTL_MS, value });
-  return value;
+
+  try {
+    const value = await load(lat, lng, radius, key);
+    if (cache.size >= CACHE_MAX_ENTRIES) {
+      const oldest = cache.keys().next().value;
+      if (oldest !== undefined) cache.delete(oldest);
+    }
+    const ttl = value.partial ? PARTIAL_TTL_MS : CACHE_TTL_MS;
+    cache.set(cacheKey, {
+      expires: now + ttl,
+      staleUntil: now + STALE_MAX_MS,
+      value,
+    });
+    return value;
+  } catch (e) {
+    if (e instanceof KakaoQuotaError) blockedUntil = Date.now() + QUOTA_COOLDOWN_MS;
+    if (stale) return stale;
+    throw e;
+  }
 }
