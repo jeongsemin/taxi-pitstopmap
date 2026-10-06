@@ -19,6 +19,7 @@ import {
 } from "@/components/ui";
 import { distanceMeters } from "@/lib/geo";
 import { isParkable } from "@/lib/parking";
+import { reportClientError } from "@/lib/report-client-error";
 import type { Place, PlaceType } from "@/types/place";
 
 const KakaoMap = dynamic(() => import("@/components/KakaoMap"), { ssr: false });
@@ -190,7 +191,15 @@ export default function Home() {
         setError(null);
       })
       .catch((e: Error) => {
-        if (e.name !== "AbortError") setError(friendlyError(e));
+        if (e.name === "AbortError") return;
+        setError(friendlyError(e));
+        // 호출 제한(429)은 의도된 동작이라 기록하지 않는다. 좌표는 기록하지 않고 반경만 남긴다.
+        if (!(e instanceof ApiError && e.status === 429)) {
+          reportClientError("places_fetch", e.message, {
+            status: e instanceof ApiError ? e.status : undefined,
+            radius,
+          });
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
