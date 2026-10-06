@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import {
+  CONSENT_UPDATED_LABEL,
+  CONTACT_URL,
+  LOCATION_CONSENT_ITEMS,
+  SERVICE_NAME,
+} from "@/lib/legal";
 
 export const metadata: Metadata = {
   title: "개인정보·위치정보 안내",
@@ -8,8 +14,7 @@ export const metadata: Metadata = {
 };
 
 // 이 안내는 앱이 실제로 하는 일을 그대로 적은 것이다. 동작이 바뀌면 이 글도 함께 고친다.
-const UPDATED = "2026년 10월 6일";
-const CONTACT_URL = "https://github.com/jeongsemin/taxi-pitstopmap/issues";
+const UPDATED = CONSENT_UPDATED_LABEL;
 
 type Section = { title: string; body: (string | string[])[] };
 
@@ -18,12 +23,21 @@ const SECTIONS: Section[] = [
     title: "내 위치는 이렇게 써요",
     body: [
       [
-        "앱을 열 때와 ‘현재 위치’ 버튼을 누를 때, 휴대폰에 위치를 한 번 물어봐요. 계속 따라다니며 추적하지 않아요.",
+        "위치정보 이용에 동의하면, 앱을 열 때와 ‘현재 위치’ 버튼을 누를 때 휴대폰에 위치를 한 번 물어봐요. 동의하기 전에는 위치를 읽지 않아요. 계속 따라다니며 추적하지도 않아요.",
         "위치는 내 주변 식당·화장실을 찾는 데만 써요. 광고나 다른 목적에는 쓰지 않아요.",
-        "위치를 허용하지 않아도 앱을 쓸 수 있어요. 이때는 강남역 기준으로 보여 드려요.",
+        "동의하지 않아도 앱을 쓸 수 있어요. 이때는 강남역 기준으로 보여 드려요.",
         "서버로 보내는 좌표는 약 10m 단위로 뭉뚱그려서 보내요. 주변 장소를 찾아 돌려드린 뒤에는 우리 데이터베이스에 저장하지 않아요.",
       ],
       "위치 권한은 휴대폰이나 브라우저의 설정에서 언제든 끌 수 있어요.",
+    ],
+  },
+  {
+    title: "위치정보 이용 동의와 철회",
+    body: [
+      `${SERVICE_NAME}은 처음 쓸 때 아래 내용을 보여 드리고, 동의 버튼을 눌러야만 내 위치를 읽어요.`,
+      LOCATION_CONSENT_ITEMS.map((item) => `${item.label}: ${item.text}`),
+      "동의 문구가 바뀌면 다시 동의를 받아요. 설정 탭의 ‘위치정보 이용 동의’에서 언제든 철회하거나 다시 동의할 수 있어요.",
+      "동의했는지 나중에 확인할 수 있게, 동의·거부·철회한 사실을 기록해 둬요. 기록되는 것은 이 브라우저가 만든 무작위 번호, 동의 문구 버전, 동의·거부·철회 여부, 시각이에요. 이름, IP 주소, 내 위치, 계정은 기록하지 않아서 누가 동의했는지는 알 수 없어요. 이 기록은 동의의 증빙이라 자동으로 지우지 않아요.",
     ],
   },
   {
@@ -71,7 +85,7 @@ const SECTIONS: Section[] = [
   {
     title: "문의",
     body: [
-      "제보 삭제나 개인정보에 대한 문의는 아래 주소로 남겨 주세요.",
+      `제보 삭제나 개인정보에 대한 문의는 아래 주소로 남겨 주세요. (서비스: ${SERVICE_NAME})`,
     ],
   },
 ];

@@ -9,6 +9,7 @@ import {
   Sun,
   type LucideIcon,
 } from "lucide-react";
+import type { ConsentStatus } from "@/lib/location-consent";
 import { useTheme, type ThemePref } from "@/lib/theme";
 
 const OPTIONS: {
@@ -37,8 +38,19 @@ const OPTIONS: {
   },
 ];
 
-export default function SettingsScreen() {
+type Props = {
+  consentStatus: ConsentStatus;
+  onWithdrawConsent: () => void;
+  onRequestConsent: () => void;
+};
+
+export default function SettingsScreen({
+  consentStatus,
+  onWithdrawConsent,
+  onRequestConsent,
+}: Props) {
   const { pref, setPref } = useTheme();
+  const consented = consentStatus === "granted";
 
   return (
     <div className="absolute inset-0 z-20 flex flex-col bg-ink">
@@ -91,6 +103,33 @@ export default function SettingsScreen() {
                 </button>
               );
             })}
+          </div>
+        </section>
+
+        <section aria-labelledby="consent-heading" className="mt-6">
+          <h2
+            id="consent-heading"
+            className="mb-2 text-sm font-bold text-muted"
+          >
+            위치정보 이용 동의
+          </h2>
+          <div className="rounded-2xl border border-line bg-surface p-4">
+            <p className="text-lg font-extrabold text-fg">
+              {consented ? "동의함" : "동의하지 않음"}
+            </p>
+            <p className="mt-0.5 text-sm font-medium text-muted">
+              {consented
+                ? "내 위치로 주변 식당·화장실을 찾고 있어요. 철회하면 더 이상 내 위치를 읽지 않고 강남역 기준으로 보여요."
+                : "내 위치를 읽지 않고 강남역 기준으로 보여 드려요. 동의하면 내 주변 장소를 찾아 드려요."}
+            </p>
+            <button
+              onClick={consented ? onWithdrawConsent : onRequestConsent}
+              className={`mt-3 h-12 w-full rounded-2xl text-base font-extrabold ${
+                consented ? "bg-chip text-fg" : "bg-brand text-on-brand"
+              }`}
+            >
+              {consented ? "동의 철회" : "동의하기"}
+            </button>
           </div>
         </section>
 
