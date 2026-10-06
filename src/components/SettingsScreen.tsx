@@ -1,6 +1,14 @@
 "use client";
 
-import { Moon, MonitorSmartphone, Sun, type LucideIcon } from "lucide-react";
+import Link from "next/link";
+import {
+  ChevronRight,
+  Moon,
+  MonitorSmartphone,
+  ShieldCheck,
+  Sun,
+  type LucideIcon,
+} from "lucide-react";
 import { useTheme, type ThemePref } from "@/lib/theme";
 
 const OPTIONS: {
@@ -84,6 +92,29 @@ export default function SettingsScreen() {
               );
             })}
           </div>
+        </section>
+
+        <section aria-labelledby="info-heading" className="mt-6">
+          <h2 id="info-heading" className="mb-2 text-sm font-bold text-muted">
+            안내
+          </h2>
+          <Link
+            href="/privacy"
+            className="flex min-h-[72px] w-full items-center gap-3.5 rounded-2xl border border-line bg-surface p-4"
+          >
+            <div className="flex size-[46px] shrink-0 items-center justify-center rounded-[10px] bg-chip text-muted">
+              <ShieldCheck size={24} aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-extrabold text-fg">
+                개인정보·위치정보 안내
+              </p>
+              <p className="text-sm font-medium text-muted">
+                내 위치와 제보를 어떻게 쓰는지 알려 드려요
+              </p>
+            </div>
+            <ChevronRight size={20} className="shrink-0 text-faint" aria-hidden />
+          </Link>
         </section>
       </div>
     </div>

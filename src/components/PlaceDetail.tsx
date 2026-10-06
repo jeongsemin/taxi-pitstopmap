@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -207,6 +208,12 @@ export default function PlaceDetail({
                 </button>
               ))}
             </div>
+            <p className="mt-2 text-xs font-semibold text-muted">
+              제보는 익명으로 저장돼요. 내 위치는 저장하지 않아요.{" "}
+              <Link href="/privacy" className="underline">
+                자세히 보기
+              </Link>
+            </p>
             {message && (
               <p
                 role="status"
