@@ -1,9 +1,10 @@
-import type { NextRequest } from "next/server";
+import { after, type NextRequest } from "next/server";
 import { supabase } from "@/lib/supabase";
 import {
   fetchRestaurants,
   type RestaurantResult,
 } from "@/lib/kakao-restaurants";
+import { recordServerError } from "@/lib/error-log";
 import { EMPTY_PARKING_SCORE } from "@/lib/parking";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import type { Place, PlaceType } from "@/types/place";
@@ -110,7 +111,8 @@ async function attachParkingScores(places: Place[]): Promise<boolean> {
     })),
   });
   if (error) {
-    console.error("주정차 점수 계산 실패:", error.message);
+    // 응답을 보낸 뒤에 기록한다 (응답 속도에 영향 없음)
+    after(() => recordServerError("score_failed", error.message));
     return false;
   }
 
@@ -197,6 +199,11 @@ export async function GET(request: NextRequest) {
 
   const key = process.env.KAKAO_REST_API_KEY;
   if (!key) {
+    after(() =>
+      recordServerError("places_failed", "KAKAO_REST_API_KEY 미설정", {
+        status: 500,
+      }),
+    );
     return json({ error: "KAKAO_REST_API_KEY 미설정" }, 500);
   }
 
@@ -236,9 +243,20 @@ export async function GET(request: NextRequest) {
 
   // 요청한 종류가 전부 실패하면 오류로 응답한다.
   if (failed.length === types.length) {
+    after(() =>
+      recordServerError("places_failed", errors.join(" | "), {
+        status: 502,
+        failed,
+        radius,
+      }),
+    );
     return json({ error: errors[0] }, 502);
   }
-  errors.forEach((message) => console.error("장소 조회 일부 실패:", message));
+  if (errors.length > 0) {
+    after(() =>
+      recordServerError("places_partial", errors.join(" | "), { failed, radius }),
+    );
+  }
 
   const places = [...restaurants.places, ...toilets].sort(
     (a, b) => a.distance - b.distance,

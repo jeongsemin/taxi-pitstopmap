@@ -1,4 +1,5 @@
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { reportClientError } from "@/lib/report-client-error";
 import type { Place } from "@/types/place";
 
 // parkable 은 이전 화면이 보내던 값(도로변 제보와 같게 취급)이라 새로 보내지는 않는다.
@@ -34,6 +35,7 @@ async function ensureSession() {
   if (data.session) return;
   const { error } = await supabaseBrowser.auth.signInAnonymously();
   if (error) {
+    reportClientError("report_submit", `익명 로그인 실패: ${error.message}`);
     throw new Error(
       "로그인에 실패했어요. 잠시 후 다시 시도해 주세요. (익명 로그인이 꺼져 있을 수 있어요)",
     );
@@ -56,6 +58,8 @@ export async function submitReport(
     const known = Object.keys(ERROR_MESSAGES).find((k) =>
       error.message.includes(k),
     );
+    // 중복·한도 같은 정상 안내가 아닌 예상 못 한 실패만 기록한다
+    if (!known) reportClientError("report_submit", error.message, { type });
     throw new Error(
       known ? ERROR_MESSAGES[known] : "제보를 저장하지 못했어요.",
     );

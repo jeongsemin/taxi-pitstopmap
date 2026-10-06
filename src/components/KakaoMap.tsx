@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Toilet, Utensils, type IconNode } from "lucide";
 import { LEVEL_STYLE, parkingLevel, type ParkingLevel } from "@/lib/parking";
+import { reportClientError } from "@/lib/report-client-error";
 import { useTheme, type ResolvedTheme } from "@/lib/theme";
 import type { Place, PlaceType } from "@/types/place";
 
@@ -150,7 +151,14 @@ function loadSdk(): Promise<void> {
     }
     const script = document.createElement("script");
     script.src = SDK_URL;
-    script.onload = () => window.kakao.maps.load(() => resolve());
+    script.onload = () => {
+      // 불러와졌는데 kakao 가 없으면(허용되지 않은 도메인·잘못된 키 등) 실패로 본다
+      if (!window.kakao?.maps) {
+        reject(new Error("카카오맵 SDK 초기화 실패"));
+        return;
+      }
+      window.kakao.maps.load(() => resolve());
+    };
     script.onerror = () => reject(new Error("카카오맵 SDK 로드 실패"));
     document.head.appendChild(script);
   });
@@ -212,7 +220,14 @@ export default function KakaoMap({
         }
         setReady(true);
       })
-      .catch((e: Error) => setError(e.message));
+      .catch((e: Error) => {
+        setError(e.message);
+        // 지도가 안 뜨는 것은 가장 치명적인 문제라 따로 기록한다 (도메인 등록·키 문제 확인용)
+        reportClientError("map_sdk_load", e.message, {
+          host: window.location.host,
+          variant,
+        });
+      });
     // 지도 인스턴스는 한 번만 생성
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
