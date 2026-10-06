@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { LocateFixed, MapPin, RefreshCw, X } from "lucide-react";
 import BottomNav, { type Tab } from "@/components/BottomNav";
 import FilterBar, { type Filter } from "@/components/FilterBar";
+import LocationConsent from "@/components/LocationConsent";
 import PlaceCard, { reasonText } from "@/components/PlaceCard";
 import PlaceDetail from "@/components/PlaceDetail";
 import RadiusMenu, { radiusLabel } from "@/components/RadiusMenu";
@@ -18,6 +19,7 @@ import {
   isOpen24h,
 } from "@/components/ui";
 import { distanceMeters } from "@/lib/geo";
+import { useLocationConsent } from "@/lib/location-consent";
 import { isParkable } from "@/lib/parking";
 import { reportClientError } from "@/lib/report-client-error";
 import type { Place, PlaceType } from "@/types/place";
@@ -106,6 +108,8 @@ export default function Home() {
   const [focusId, setFocusId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const consent = useLocationConsent();
+  const [consentOpen, setConsentOpen] = useState(false);
 
   // 검색 기준 위치를 옮긴다. 같은 위치면 다시 불러오지 않는다.
   const moveSearchTo = useCallback((point: LatLng) => {
@@ -157,11 +161,29 @@ export default function Home() {
     );
   }, [moveSearchTo]);
 
+  // 위치는 사용자가 이용 동의를 한 뒤에만 읽는다 (동의 문구가 바뀌면 다시 동의를 받는다).
+  // 동의 전이거나 동의하지 않은 경우에는 위치를 요청하지 않고 강남역 기준으로 시작한다.
   useEffect(() => {
-    // 마운트 시 한 번 현재 위치를 요청한다 (브라우저 API 라 마운트 후에만 가능)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    locate();
-  }, [locate]);
+    if (consent.status === "loading") return;
+    if (consent.status === "granted") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      locate();
+      return;
+    }
+    // 동의를 철회했거나 거부한 경우, 읽어 둔 내 위치도 쓰지 않는다
+    if (originRef.current !== DEFAULT_CENTER) {
+      originRef.current = DEFAULT_CENTER;
+      setOrigin(DEFAULT_CENTER);
+      moveSearchTo(DEFAULT_CENTER);
+    }
+    setLocMessage(
+      consent.status === "declined"
+        ? "위치 정보 미동의 – 강남역 기준"
+        : "위치 동의 전 – 강남역 기준",
+    );
+    setLocationReady(true);
+    if (consent.status === "none") setConsentOpen(true);
+  }, [consent.status, locate, moveSearchTo]);
 
   useEffect(() => {
     const timer = window.setTimeout(
@@ -428,7 +450,10 @@ export default function Home() {
             </button>
           )}
           <button
-            onClick={locate}
+            // 동의 전에는 위치를 읽지 않고 동의 화면을 먼저 보여 준다
+            onClick={() =>
+              consent.status === "granted" ? locate() : setConsentOpen(true)
+            }
             aria-label="내 위치로 이동"
             className="pointer-events-auto flex h-[52px] min-w-[52px] items-center justify-center rounded-2xl bg-raised shadow-[0_12px_28px_rgba(0,0,0,0.4)]"
           >
@@ -535,10 +560,29 @@ export default function Home() {
             </div>
           </div>
         )}
-        {tab === "settings" && <SettingsScreen />}
+        {tab === "settings" && (
+          <SettingsScreen
+            consentStatus={consent.status}
+            onWithdrawConsent={consent.withdraw}
+            onRequestConsent={() => setConsentOpen(true)}
+          />
+        )}
       </main>
 
       <BottomNav tab={tab} onChange={changeTab} />
+
+      {consentOpen && consent.status !== "granted" && (
+        <LocationConsent
+          onAgree={() => {
+            consent.grant();
+            setConsentOpen(false);
+          }}
+          onDecline={() => {
+            consent.decline();
+            setConsentOpen(false);
+          }}
+        />
+      )}
 
       {detail && (
         <PlaceDetail
