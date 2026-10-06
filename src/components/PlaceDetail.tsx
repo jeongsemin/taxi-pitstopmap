@@ -28,7 +28,8 @@ type Props = {
 
 function openHoursText(place: Place) {
   if (isOpen24h(place)) return "24시간";
-  return place.openHours ?? "정보 없음";
+  // "08:00~22:00" 은 띄어쓰기가 없어 좁은 칸을 넘치므로, "~" 뒤에서 줄바꿈할 수 있게 한다
+  return (place.openHours ?? "정보 없음").replace(/~/g, "~​");
 }
 
 export default function PlaceDetail({
@@ -318,7 +319,9 @@ function Fact({
         <Icon size={16} aria-hidden />
         {label}
       </div>
-      <p className="text-base font-extrabold text-fg">{children}</p>
+      <p className="text-base leading-snug font-extrabold text-fg [overflow-wrap:anywhere]">
+        {children}
+      </p>
     </div>
   );
 }
