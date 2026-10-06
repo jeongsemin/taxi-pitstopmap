@@ -118,6 +118,8 @@ export default function Home() {
   const [focusId, setFocusId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  // 이 시각까지는 조회 주소에 요청마다 다른 값을 붙여 CDN 캐시를 건너뛴다 (제보 직후 내 제보가 점수에 바로 보이게)
+  const bustCacheUntil = useRef(0);
   const consent = useLocationConsent();
   const [consentOpen, setConsentOpen] = useState(false);
 
@@ -207,8 +209,13 @@ export default function Home() {
     if (!locationReady) return;
     const controller = new AbortController();
     fetch(
-      // 제보 직후 등 다시 불러올 때(refreshKey > 0)는 r 값을 붙여 CDN 캐시를 건너뛴다
-      `/api/places?lat=${roundCoord(searchCenter.lat)}&lng=${roundCoord(searchCenter.lng)}&radius=${radius}${refreshKey > 0 ? `&r=${refreshKey}` : ""}`,
+      // 제보 직후에는 요청마다 다른 r 값을 붙여 CDN 캐시를 건너뛴다. 값이 요청마다 달라야 같은 곳을
+      // 보던 다른 사용자가 만들어 둔 캐시(그 사람 제보만 반영된 점수)를 받지 않는다.
+      `/api/places?lat=${roundCoord(searchCenter.lat)}&lng=${roundCoord(searchCenter.lng)}&radius=${radius}${
+        Date.now() < bustCacheUntil.current
+          ? `&r=${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+          : ""
+      }`,
       {
         signal: controller.signal,
       },
@@ -602,7 +609,11 @@ export default function Home() {
           key={detail.id}
           place={detail}
           onClose={closeDetail}
-          onReported={() => setRefreshKey((k) => k + 1)}
+          onReported={() => {
+            // CDN 캐시(최대 2분 + 갱신 중 오래된 응답 5분)보다 충분히 긴 시간 동안 캐시를 건너뛴다
+            bustCacheUntil.current = Date.now() + 8 * 60_000;
+            setRefreshKey((k) => k + 1);
+          }}
           distanceFrom={searchingElsewhere ? "search" : "me"}
         />
       )}
