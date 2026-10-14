@@ -14,6 +14,10 @@ function withExtension(base) {
 }
 
 export async function resolve(specifier, context, nextResolve) {
+  // "next/server" 는 after() 를 요청 밖에서도 부를 수 있게 바꾼 테스트용으로 대신한다
+  if (specifier === "next/server") {
+    return nextResolve(pathToFileURL(path.join(root, "tests", "next-server-shim.mjs")).href, context);
+  }
   // "next/server" -> node_modules/next/server.js (Next.js 는 확장자 없는 이름을 CJS 방식으로만 제공한다)
   if (specifier.startsWith("next/") && !path.extname(specifier)) {
     const file = path.join(root, "node_modules", `${specifier}.js`);
