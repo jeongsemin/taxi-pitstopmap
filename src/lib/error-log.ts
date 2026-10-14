@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { alertConfigured, parseAlertInfo, sendAlertEmail } from "@/lib/alert";
 
 // 서버에서 오류를 기록한다. 기록에 실패해도 요청 처리를 막지 않도록 절대 던지지 않는다.
 // 좌표·IP·사용자 정보는 넣지 않는다 (경로, 상태 코드 같은 진단 정보만).
@@ -19,14 +20,19 @@ export async function recordServerError(
 ): Promise<void> {
   console.error(`[${kind}]`, message);
   try {
-    const { error } = await supabase.rpc("log_error", {
+    const { data, error } = await supabase.rpc("log_error", {
       p_source: "server",
       p_kind: kind,
       p_message: message,
       p_detail: detail,
       p_release: RELEASE,
+      // 메일 알림이 설정돼 있을 때만 DB 에 알림 여부를 묻는다 (설정 전에는 기록만 한다)
+      p_alert: alertConfigured(),
     });
     if (error) console.error("오류 기록 실패:", error.message);
+    // DB 가 알려도 된다고 한 경우(같은 종류는 60분에 한 번)에만 메일을 보낸다
+    const info = parseAlertInfo(data);
+    if (info) await sendAlertEmail(info);
   } catch (e) {
     console.error("오류 기록 실패:", e);
   }

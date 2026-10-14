@@ -308,6 +308,43 @@ class DatabaseTest(unittest.TestCase):
         )
         self.assertLessEqual(self.cur.fetchone()[0], max(60, before))
 
+    def test_알림을_켜지_않으면_알림_칸을_쓰지_않고_아무것도_돌려주지_않는다(self):
+        self.cur.execute("select count(*) from alert_log")
+        before = self.cur.fetchone()[0]
+        self.cur.execute("select log_error('server','test_alert_off','알림 없음')")
+        self.assertIsNone(self.cur.fetchone()[0])
+        self.cur.execute("select count(*) from alert_log")
+        self.assertEqual(self.cur.fetchone()[0], before)
+
+    def test_알림은_같은_종류를_60분에_한_번만_허락하고_다른_종류는_따로_센다(self):
+        q = "select log_error('server', %s, '시험 오류', '{}'::jsonb, 'abc1234', true)"
+        self.cur.execute(q, ("test_alert_a",))
+        first = self.cur.fetchone()[0]
+        self.assertEqual(first["kind"], "test_alert_a")
+        self.assertEqual(first["message"], "시험 오류")
+        self.assertEqual(first["release"], "abc1234")
+        self.assertGreaterEqual(first["count_1h"], 1)
+        self.cur.execute(q, ("test_alert_a",))
+        self.assertIsNone(self.cur.fetchone()[0])  # 같은 종류는 이미 알렸음
+        self.cur.execute(q, ("test_alert_b",))
+        self.assertEqual(self.cur.fetchone()[0]["kind"], "test_alert_b")  # 다른 종류는 허락
+        # 60분이 지나면 같은 종류도 다시 허락한다
+        self.cur.execute(
+            "update alert_log set created_at = now() - interval '61 minutes' where kind = 'test_alert_a'"
+        )
+        self.cur.execute(q, ("test_alert_a",))
+        self.assertEqual(self.cur.fetchone()[0]["kind"], "test_alert_a")
+
+    def test_알림은_하루_20통을_넘기지_않는다(self):
+        self.cur.execute(
+            "insert into alert_log (kind) select 'test_cap_' || g from generate_series(1, 20) g"
+        )
+        self.cur.execute("select log_error('server','test_alert_cap','한도 시험','{}'::jsonb,null,true)")
+        self.assertIsNone(self.cur.fetchone()[0])
+        # 오류 기록 자체는 남는다
+        self.cur.execute("select count(*) from error_logs where kind = 'test_alert_cap'")
+        self.assertEqual(self.cur.fetchone()[0], 1)
+
     def test_동의_기록은_올바른_값만_저장한다(self):
         cid = str(uuid.uuid4())
         self.cur.execute("select log_consent(%s,'2026-10-06','granted')", (cid,))

@@ -1,6 +1,7 @@
-import type { NextRequest } from "next/server";
+import { after, type NextRequest } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
+import { alertConfigured, parseAlertInfo, sendAlertEmail } from "@/lib/alert";
 
 // 화면(브라우저)에서 난 오류를 받아 DB 에 기록한다. 공개 주소라 입력을 엄격히 제한한다.
 // 응답은 항상 204 로 같게 해서, 기록 여부나 제한 여부를 바깥에 알려 주지 않는다.
@@ -51,13 +52,17 @@ export async function POST(request: NextRequest) {
       ? detail
       : {};
 
-  const { error } = await supabase.rpc("log_error", {
+  const { data, error } = await supabase.rpc("log_error", {
     p_source: "client",
     p_kind: kind,
     p_message: typeof message === "string" ? message : "",
     p_detail: safeDetail,
     p_release: RELEASE,
+    p_alert: alertConfigured(),
   });
   if (error) console.error("화면 오류 기록 실패:", error.message);
+  // 알림 메일은 응답을 보낸 뒤에 보낸다 (응답 속도에 영향 없음)
+  const info = parseAlertInfo(data);
+  if (info) after(() => sendAlertEmail(info));
   return empty();
 }
