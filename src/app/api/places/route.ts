@@ -7,7 +7,8 @@ import {
 } from "@/lib/kakao-restaurants";
 import { recordServerError } from "@/lib/error-log";
 import { recordKakaoUsage } from "@/lib/usage";
-import { EMPTY_PARKING_SCORE } from "@/lib/parking";
+import { EMPTY_PARKING_SCORE, type ParkingScore } from "@/lib/parking";
+import { scoreCache } from "@/lib/score-cache";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import type { Place, PlaceType } from "@/types/place";
 
@@ -101,12 +102,51 @@ async function fetchToilets(
   }));
 }
 
+function toParkingScore(r: ScoreRow): ParkingScore {
+  return {
+    score: r.score,
+    noData: r.no_data ?? false,
+    nearestLotDistance: r.nearest_lot_distance,
+    nearestLotName: r.nearest_lot_name,
+    reasons: r.reasons ?? [],
+    storeParking: {
+      kind: r.store_parking ?? "none",
+      lotName: r.store_parking_name ?? null,
+    },
+    roadside:
+      r.roadside_distance === null || r.roadside_distance === undefined
+        ? null
+        : { distance: r.roadside_distance, name: r.roadside_name ?? null },
+    reports: {
+      store: r.reports_store ?? 0,
+      roadside: r.reports_roadside ?? 0,
+      enforced: r.reports_enforced,
+      full: r.reports_full,
+    },
+  };
+}
+
 // 점수 계산이 실패해도 장소 자체는 보여준다. 성공 여부를 반환한다.
-async function attachParkingScores(places: Place[]): Promise<boolean> {
+// 이미 점수를 아는 장소는 캐시에서 쓰고 나머지만 DB 에 묻는다. fresh 이면 캐시를 읽지 않는다(제보 직후).
+async function attachParkingScores(
+  places: Place[],
+  fresh: boolean,
+): Promise<boolean> {
   if (places.length === 0) return true;
+
+  const cached = fresh
+    ? new Map<string, ParkingScore>()
+    : scoreCache.read(places.map((p) => p.id));
+  for (const p of places) {
+    const hit = cached.get(p.id);
+    if (hit) p.parking = hit;
+  }
+  const missing = places.filter((p) => !cached.has(p.id));
+  if (missing.length === 0) return true;
+
   const { data, error } = await supabase.rpc("score_places", {
     // 이름·주소는 주차 자리 제공 여부 추정에 쓴다
-    points: places.map((p) => ({
+    points: missing.map((p) => ({
       id: p.id,
       lat: p.lat,
       lng: p.lng,
@@ -117,35 +157,27 @@ async function attachParkingScores(places: Place[]): Promise<boolean> {
   if (error) {
     // 응답을 보낸 뒤에 기록한다 (응답 속도에 영향 없음)
     after(() => recordServerError("score_failed", error.message));
+    // 실패해도 옛 점수가 있으면 그것으로 보여 준다 (응답은 실패로 표시해 캐시되지 않게 한다)
+    const stale = scoreCache.read(
+      missing.map((p) => p.id),
+      { includeStale: true },
+    );
+    for (const p of missing) {
+      const old = stale.get(p.id);
+      if (old) p.parking = old;
+    }
     return false;
   }
 
   const byId = new Map((data as ScoreRow[]).map((r) => [r.id, r]));
-  for (const p of places) {
+  const fetchedScores: [string, ParkingScore][] = [];
+  for (const p of missing) {
     const r = byId.get(p.id);
     if (!r) continue;
-    p.parking = {
-      score: r.score,
-      noData: r.no_data ?? false,
-      nearestLotDistance: r.nearest_lot_distance,
-      nearestLotName: r.nearest_lot_name,
-      reasons: r.reasons ?? [],
-      storeParking: {
-        kind: r.store_parking ?? "none",
-        lotName: r.store_parking_name ?? null,
-      },
-      roadside:
-        r.roadside_distance === null || r.roadside_distance === undefined
-          ? null
-          : { distance: r.roadside_distance, name: r.roadside_name ?? null },
-      reports: {
-        store: r.reports_store ?? 0,
-        roadside: r.reports_roadside ?? 0,
-        enforced: r.reports_enforced,
-        full: r.reports_full,
-      },
-    };
+    p.parking = toParkingScore(r);
+    fetchedScores.push([p.id, p.parking]);
   }
+  scoreCache.write(fetchedScores);
   return true;
 }
 
@@ -273,7 +305,8 @@ export async function GET(request: NextRequest) {
   const places = [...restaurants.places, ...toilets].sort(
     (a, b) => a.distance - b.distance,
   );
-  const scored = await attachParkingScores(places);
+  // 제보 직후 화면이 붙이는 캐시 우회 값(r)이 있으면 점수 캐시도 건너뛴다
+  const scored = await attachParkingScores(places, params.has("r"));
 
   // 일부만 불러온 응답은 캐시하지 않는다 (복구된 뒤에도 잘못된 결과가 남지 않게)
   // 옛 캐시로 답했거나 일부만 받은 결과도 캐시하지 않는다

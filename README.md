@@ -152,7 +152,7 @@ python data/scripts/load_parking_lots.py --region seoul   # 카카오 주차장 
 
 | 명령 | 내용 | 필요한 것 |
 | ---- | ---- | -------- |
-| `npm test` | 호출 제한, 점수 등급, 거리 계산, 지도 앱 주소, 카카오 캐시·호출 상한·한도 초과 보호, 공개 API(`/api/places`, `/api/log`, `/api/consent`)의 입력 검증·호출 제한 (38개) | Node 22.18 이상 (Node 24 로 확인). 새 패키지 없이 Node 내장 테스트 도구를 씁니다. |
+| `npm test` | 호출 제한, 점수 등급, 거리 계산, 지도 앱 주소, 카카오 캐시·호출 상한·한도 초과 보호, 점수 결과 캐시, 공개 API(`/api/places`, `/api/log`, `/api/consent`)의 입력 검증·호출 제한 (44개) | Node 22.18 이상 (Node 24 로 확인). 새 패키지 없이 Node 내장 테스트 도구를 씁니다. |
 | `npm run test:db` | 점수 규칙(가게 주차·도로변·보조·제보 가감·100점 상한·30일), 제보 입력 검증과 중복·하루 한도, 오류·동의·호출량 기록 함수 (29개) | `.env.local` 의 DB 접속 정보, Python 데이터 환경(`data/requirements.txt`) |
 | `npm run test:all` | 위 둘을 차례로 | 위 둘 |
 
